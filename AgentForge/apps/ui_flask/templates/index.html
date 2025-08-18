@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+  <form action="/preview" method="post">
+    <label for="prompt">Décris ton projet (langage, web, BDD, auth, tests, CI, docker) :</label>
+    <textarea id="prompt" name="prompt" rows="8" placeholder="Ex : API FastAPI pour gestion de flotte, Postgres, JWT, tests basiques, CI GitHub, docker prêt."></textarea>
+    <button type="submit">Prévisualiser la spec</button>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  </form>
+{% endblock %}

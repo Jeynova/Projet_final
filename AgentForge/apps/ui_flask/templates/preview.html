@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>Spécification extraite</h2>
+  <pre>{{ spec | tojson(indent=2) }}</pre>
+  <h3>Confiance par champ</h3>
+  <ul>
+    {% for k, v in conf.items() %}
+      <li><strong>{{ k }}</strong>: {{ '%.2f'|format(v) }}</li>
+    {% endfor %}
+  </ul>
+  <details>
+    <summary>Prompt d'origine</summary>
+    <pre>{{ prompt }}</pre>
+  </details>
+  <p>(Étape suivante J2 : "Générer le dépôt" à partir de cette spec)</p>
+{% endblock %}
+  <a href="/">Retour à l'accueil</a>
+{% endblock %}
