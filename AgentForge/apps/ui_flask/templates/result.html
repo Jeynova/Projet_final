@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+  <h2>✅ Projet généré avec succès !</h2>
+  
+  <div class="project-info">
+    <h3>{{ name }}</h3>
+    <p><strong>Status:</strong> 
+      {% if status == "completed" %}
+        <span class="status-success">✅ Terminé</span>
+      {% elif status == "needs_fix" %}
+        <span class="status-warning">⚠️ Corrections nécessaires</span>
+      {% else %}
+        <span class="status-info">ℹ️ {{ status }}</span>
+      {% endif %}
+    </p>
+    
+    <div class="actions">
+      <a href="{{ download_url }}" class="btn btn-primary">📦 Télécharger ZIP</a>
+      {% if project_id %}
+        <form method="post" action="/push-image/{{ project_id }}" style="display:inline">
+          <button type="submit" class="btn btn-secondary">🐳 Build & Push Docker</button>
+        </form>
+      {% endif %}
+    </div>
+  </div>
+
+  <details open>
+    <summary><strong>Logs de génération</strong></summary>
+    <pre class="logs">{% for log in logs %}{{ log }}
+{% endfor %}</pre>
+  </details>
+  
+  <details>
+    <summary><strong>Prompt d'origine</strong></summary>
+    <pre>{{ prompt }}</pre>
+  </details>
+  
+  <p><strong>Chemin du projet:</strong> <code>{{ project_path }}</code></p>
+  
+  <a href="/">🏠 Retour à l'accueil</a>
+{% endblock %}

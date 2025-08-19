@@ -1,0 +1,94 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from typing import List, Dict, Any
+
+from ..db import get_db
+from ..models import *
+from ..security import get_current_user
+
+router = APIRouter(tags=["crud"])
+
+{% if entities %}
+{% for entity in entities %}
+@router.get("/{{ entity.name.lower() }}s", response_model=List[Dict[str, Any]])
+def list_{{ entity.name.lower() }}s(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """List all {{ entity.name.lower() }}s"""
+    items = db.query({{ entity.name }}).offset(skip).limit(limit).all()
+    return [item.__dict__ for item in items]
+
+@router.get("/{{ entity.name.lower() }}s/{item_id}", response_model=Dict[str, Any])
+def get_{{ entity.name.lower() }}(
+    item_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get {{ entity.name.lower() }} by ID"""
+    item = db.query({{ entity.name }}).filter({{ entity.name }}.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="{{ entity.name }} not found")
+    return item.__dict__
+
+@router.post("/{{ entity.name.lower() }}s", response_model=Dict[str, Any])
+def create_{{ entity.name.lower() }}(
+    item_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """Create new {{ entity.name.lower() }}"""
+    # Remove id from data if present
+    item_data.pop("id", None)
+    item_data.pop("created_at", None)
+    
+    try:
+        db_item = {{ entity.name }}(**item_data)
+        db.add(db_item)
+        db.commit()
+        db.refresh(db_item)
+        return db_item.__dict__
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.put("/{{ entity.name.lower() }}s/{item_id}", response_model=Dict[str, Any])
+def update_{{ entity.name.lower() }}(
+    item_id: int,
+    item_data: Dict[str, Any],
+    db: Session = Depends(get_db)
+):
+    """Update {{ entity.name.lower() }}"""
+    item = db.query({{ entity.name }}).filter({{ entity.name }}.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="{{ entity.name }} not found")
+    
+    # Remove fields that shouldn't be updated
+    item_data.pop("id", None)
+    item_data.pop("created_at", None)
+    
+    try:
+        for key, value in item_data.items():
+            if hasattr(item, key):
+                setattr(item, key, value)
+        
+        db.commit()
+        db.refresh(item)
+        return item.__dict__
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.delete("/{{ entity.name.lower() }}s/{item_id}")
+def delete_{{ entity.name.lower() }}(
+    item_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete {{ entity.name.lower() }}"""
+    item = db.query({{ entity.name }}).filter({{ entity.name }}.id == item_id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="{{ entity.name }} not found")
+    
+    db.delete(item)
+    db.commit()
+    return {"message": "{{ entity.name }} deleted successfully"}
+
+{% endfor %}
+{% endif %}

@@ -1,0 +1,54 @@
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, Boolean
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+from datetime import datetime
+
+Base = declarative_base()
+
+{% if entities %}
+{% for entity in entities %}
+class {{ entity.name }}(Base):
+    __tablename__ = "{% if entity.name.lower().endswith('s') %}{{ entity.name.lower() }}{% else %}{{ entity.name.lower() }}s{% endif %}"
+    
+    {% for field in entity.fields %}
+    {% if field.type == "int" %}
+    {{ field.name }} = Column(Integer{% if field.pk %}, primary_key=True{% endif %}{% if field.unique %}, unique=True{% endif %}, index={% if field.pk or field.unique %}True{% else %}False{% endif %}, nullable={% if field.nullable %}True{% else %}False{% endif %})
+    {% elif field.type == "float" %}
+    {{ field.name }} = Column(Float{% if field.unique %}, unique=True{% endif %}, nullable={% if field.nullable %}True{% else %}False{% endif %})
+    {% elif field.type == "bool" %}
+    {{ field.name }} = Column(Boolean{% if field.unique %}, unique=True{% endif %}, nullable={% if field.nullable %}True{% else %}False{% endif %})
+    {% elif field.type == "datetime" %}
+    {{ field.name }} = Column(DateTime, default=datetime.utcnow, nullable={% if field.nullable %}True{% else %}False{% endif %})
+    {% else %}
+    {{ field.name }} = Column(String(255){% if field.unique %}, unique=True{% endif %}, index={% if field.unique %}True{% else %}False{% endif %}, nullable={% if field.nullable %}True{% else %}False{% endif %})
+    {% endif %}
+    {% endfor %}
+
+{% endfor %}
+{% else %}
+# Default models when no entities are specified
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relation avec Vehicle
+    vehicles = relationship("Vehicle", back_populates="owner")
+
+class Vehicle(Base):
+    __tablename__ = "vehicles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    license_plate = Column(String(255), unique=True, index=True, nullable=False)
+    make = Column(String(255), nullable=False)
+    model = Column(String(255), nullable=False)
+    year = Column(Integer)
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relation avec User
+    owner = relationship("User", back_populates="vehicles")
+{% endif %}

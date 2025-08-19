@@ -13,6 +13,20 @@
     <pre>{{ prompt }}</pre>
   </details>
   <p>(Étape suivante J2 : "Générer le dépôt" à partir de cette spec)</p>
-{% endblock %}
+  
+  <div class="form-actions">
+    <form action="/generate" method="post" style="display:inline;">
+      <input type="hidden" name="prompt" value="{{ prompt }}">
+      <input type="hidden" name="name" value="{{ name or 'generated-project' }}">
+      <button type="submit" class="btn-primary">🚀 Générer le projet complet</button>
+    </form>
+  </div>
+  
+  {% if project_id %}
+  <form action="/push-image/{{ project_id }}" method="post" style="margin-top:1rem;">
+    <button type="submit" class="btn-secondary">🐳 Build & Push l'image Docker</button>
+  </form>
+  {% endif %}
+  
   <a href="/">Retour à l'accueil</a>
 {% endblock %}

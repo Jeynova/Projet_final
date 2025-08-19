@@ -1,9 +1,43 @@
 {% extends "base.html" %}
 {% block content %}
   <form action="/preview" method="post">
-    <label for="prompt">Décris ton projet (langage, web, BDD, auth, tests, CI, docker) :</label>
-    <textarea id="prompt" name="prompt" rows="8" placeholder="Ex : API FastAPI pour gestion de flotte, Postgres, JWT, tests basiques, CI GitHub, docker prêt."></textarea>
-    <button type="submit">Prévisualiser la spec</button>
+    <label for="prompt">Décris ton projet :</label>
+    <textarea id="prompt" name="prompt" rows="6" placeholder="Ex: API FastAPI avec users(email unique, password_hash) et products(name, price:float, category), Postgres, JWT, tests CRUD, CI GitHub, docker prêt."></textarea>
+    
+    <label for="name">Nom du projet (slug) :</label>
+    <input id="name" name="name" placeholder="ex: fleet-api" />
+    
+    <div class="form-actions">
+      <button type="submit">👁️ Prévisualiser</button>
+      <button type="submit" formaction="/generate" class="btn-primary">🚀 Générer directement</button>
+    </div>
+    
     {% if error %}<p class="error">{{ error }}</p>{% endif %}
   </form>
+
+  {% if projects %}
+  <section class="recent-projects">
+    <h3>� Projets récents</h3>
+    <ul class="projects-list">
+      {% for p in projects %}
+        <li class="project-item">
+          <div class="project-info">
+            <strong>{{ p.name }}</strong>
+            <span class="status-badge status-{{ p.status }}">{{ p.status }}</span>
+            <small class="project-date">{{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '' }}</small>
+          </div>
+          <div class="project-actions">
+            <a href="{{ url_for('download_zip', filename=(p.zip_path.split('/')[-1] if '/' in p.zip_path else p.zip_path.split('\\\\')[-1])) }}" class="btn-small">📦 ZIP</a>
+            <form action="/push-image/{{ p.id }}" method="post" style="display:inline;">
+              <button type="submit" class="btn-small btn-secondary">🐳 Push</button>
+            </form>
+          </div>
+          {% if p.prompt %}
+          <div class="project-prompt">{{ p.prompt[:80] }}{% if p.prompt|length > 80 %}...{% endif %}</div>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 {% endblock %}
