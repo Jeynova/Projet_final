@@ -1,12 +1,20 @@
-flask==3.0.2
+# Core UI/Orch
+flask==3.0.3
 jinja2==3.1.4
-pydantic==1.10.15
+python-dotenv==1.0.1
+pydantic==2.8.2            # <- v2
 typing_extensions==4.12.2
-langgraph==0.2.24
-langchain==0.2.6
 uvicorn==0.30.1
 pyyaml==6.0.2
 colorama==0.4.6
-python-dotenv==1.0.0
+
+# LLM Integration
 openai>=1.0.0
 requests>=2.31.0
+
+# Orchestration/Agents
+langgraph==0.2.24
+langchain==0.2.6
+
+# Evite conflits avec langchain (reste en 1.x)
+numpy==1.26.4

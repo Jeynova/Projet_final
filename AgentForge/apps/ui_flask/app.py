@@ -7,6 +7,7 @@ from pathlib import Path
 load_dotenv()
 
 from core.spec_extractor import SpecExtractor
+
 app = Flask(__name__)
 extractor = SpecExtractor()
 
@@ -20,7 +21,9 @@ def preview():
     if not prompt:
         return render_template("index.html", error="Merci de saisir un prompt.")
     spec, conf = extractor.extract(prompt)
-    return render_template("preview.html", spec=spec.model_dump(), conf=conf, prompt=prompt)
+    # Compatible with both Pydantic v1 and v2
+    spec_dict = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
+    return render_template("preview.html", spec=spec_dict, conf=conf, prompt=prompt)
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5001))

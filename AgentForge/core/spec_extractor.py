@@ -77,13 +77,17 @@ class SpecExtractor:
         if isinstance(llm_json, dict):
             try:
                 spec = ProjectSpec(**{**DEFAULTS, **llm_json})
-                conf = {k: 0.9 for k in spec.model_fields.keys()}  # confiance haute si LLM ok
+                # Compatible with both Pydantic v1 and v2
+                field_names = list(spec.model_fields.keys()) if hasattr(spec, 'model_fields') else list(spec.__fields__.keys())
+                conf = {field_name: 0.9 for field_name in field_names}
                 return spec, conf
             except Exception:
                 pass
         # 2) Heuristique fallback (sans réseau)
         data = self._heuristic(prompt)
         spec = ProjectSpec(**{**DEFAULTS, **data})
-        conf = {k: 0.6 for k in spec.model_fields.keys()}
+        # Compatible with both Pydantic v1 and v2
+        field_names = list(spec.model_fields.keys()) if hasattr(spec, 'model_fields') else list(spec.__fields__.keys())
+        conf = {field_name: 0.6 for field_name in field_names}
         if data.get("web"): conf["web"] = 0.8
         return spec, conf

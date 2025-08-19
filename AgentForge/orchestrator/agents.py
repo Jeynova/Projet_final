@@ -27,7 +27,8 @@ def scaffolder(state: Dict[str, Any]) -> Dict[str, Any]:
     preset = state["preset"]
     out_dir = Path(state["artifacts_dir"]) / spec.name
     template_dir = Path(__file__).resolve().parents[1] / "templates" / preset
-    context = spec.dict()
+    # Pydantic v2 compatibility
+    context = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
     context["project_name"] = spec.name
     render_dir(template_dir, out_dir, context)
     state["project_dir"] = str(out_dir)
@@ -103,7 +104,8 @@ def spec_extractor(state):
                 "dockerize": llm_json.get("dockerize", True),
                 "infra": llm_json.get("infra", "docker_compose"),
             })
-            state["spec"] = spec.dict()
+            # Pydantic v2 compatibility
+            state["spec"] = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
             state["logs"].append("Spec Extractor: spec dérivée via LLM.")
             return state
         except Exception:
@@ -124,6 +126,7 @@ def spec_extractor(state):
         infra="docker_compose",
         features=["healthcheck","rate_limit"] + (["crud:vehicles"] if "flotte" in prompt or "fleet" in prompt else [])
     )
-    state["spec"] = spec.dict()
+    # Pydantic v2 compatibility
+    state["spec"] = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
     state["logs"].append("Spec Extractor: spec dérivée du prompt (heuristique).")
     return state
