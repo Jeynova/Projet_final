@@ -3,28 +3,9 @@ from pathlib import Path
 from .project_spec import ProjectSpec
 from .utils import render_dir, run_cmd, ensure_dir, write_json
 from colorama import Fore, Style
+from .llm_client import LLMClient
 
-# --- Agent 0: Spec Extractor (heuristique pour MVP) ---
-def spec_extractor(state: Dict[str, Any]) -> Dict[str, Any]:
-    prompt = state["prompt"].lower()
-    name = state.get("name") or "generated-app"
-    spec = ProjectSpec(
-        name=name,
-        project_type="api",
-        language="python",
-        web="fastapi" if "flask" not in prompt else "flask",
-        db=("postgres" if "postgres" in prompt or "pg" in prompt else ("sqlite" if "sqlite" in prompt else "postgres")),
-        auth=("jwt" if "jwt" in prompt else "none" if "sans auth" in prompt or "no auth" in prompt else "jwt"),
-        tests="crud" if "crud" in prompt else "basic",
-        ci="github_actions",
-        security="baseline",
-        dockerize=True,
-        infra="docker_compose",
-        features=["healthcheck","rate_limit"] + (["crud:vehicles"] if "flotte" in prompt or "fleet" in prompt else [])
-    )
-    state["spec"] = spec.dict()
-    state["logs"].append("Spec Extractor: spec dérivée du prompt.")
-    return state
+# --- Agent 0: Spec Extractor (with LLM support and heuristic fallback) ---
 
 # --- Agent 1: Planner ---
 def planner(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -90,4 +71,59 @@ def verifier(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         state["status"] = "needs_fix"
         state["logs"].append(Fore.YELLOW + "Verifier: des corrections peuvent être nécessaires ⚠️" + Style.RESET_ALL)
+    return state
+
+SYSTEM_PROMPT = (
+    "Tu es un extracteur qui convertit une demande en spec de projet. "
+    "Renvoie strictement un JSON avec ces champs: "
+    "name, project_type, language, web, db, auth, features, tests, ci, security, dockerize, infra."
+)
+
+# --- Agent 0: Spec Extractor (with LLM support and heuristic fallback) ---
+def spec_extractor(state):
+    prompt = state["prompt"].lower()
+    name = state.get("name") or "generated-app"
+
+    # 1) Tentative LLM si configuré
+    llm = LLMClient()
+    llm_json = llm.extract_json(SYSTEM_PROMPT, state["prompt"])
+    if isinstance(llm_json, dict):
+        try:
+            spec = ProjectSpec(**{
+                "name": llm_json.get("name", name),
+                "project_type": llm_json.get("project_type", "api"),
+                "language": llm_json.get("language", "python"),
+                "web": llm_json.get("web", "fastapi"),
+                "db": llm_json.get("db", "postgres"),
+                "auth": llm_json.get("auth", "jwt"),
+                "features": llm_json.get("features", []),
+                "tests": llm_json.get("tests", "basic"),
+                "ci": llm_json.get("ci", "github_actions"),
+                "security": llm_json.get("security", "baseline"),
+                "dockerize": llm_json.get("dockerize", True),
+                "infra": llm_json.get("infra", "docker_compose"),
+            })
+            state["spec"] = spec.dict()
+            state["logs"].append("Spec Extractor: spec dérivée via LLM.")
+            return state
+        except Exception:
+            pass
+
+    # 2) Fallback heuristique (comme avant)
+    spec = ProjectSpec(
+        name=name,
+        project_type="api",
+        language="python",
+        web="fastapi" if "flask" not in prompt else "flask",
+        db=("postgres" if "postgres" in prompt or "pg" in prompt else ("sqlite" if "sqlite" in prompt else "postgres")),
+        auth=("jwt" if "jwt" in prompt else "none" if "sans auth" in prompt or "no auth" in prompt else "jwt"),
+        tests="crud" if "crud" in prompt else "basic",
+        ci="github_actions",
+        security="baseline",
+        dockerize=True,
+        infra="docker_compose",
+        features=["healthcheck","rate_limit"] + (["crud:vehicles"] if "flotte" in prompt or "fleet" in prompt else [])
+    )
+    state["spec"] = spec.dict()
+    state["logs"].append("Spec Extractor: spec dérivée du prompt (heuristique).")
     return state

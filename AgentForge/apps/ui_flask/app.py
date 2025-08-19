@@ -3,9 +3,10 @@ from flask import Flask, render_template, request
 from dotenv import load_dotenv
 from pathlib import Path
 
-from core.spec_extractor import SpecExtractor
-
+# Load environment variables
 load_dotenv()
+
+from core.spec_extractor import SpecExtractor
 app = Flask(__name__)
 extractor = SpecExtractor()
 

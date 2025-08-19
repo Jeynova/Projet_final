@@ -1,4 +1,4 @@
-import os
+import os, json
 from typing import Optional, Dict, Any
 
 class LLMClient:
@@ -7,8 +7,8 @@ class LLMClient:
 
     def extract_json(self, system_prompt: str, user_prompt: str) -> Optional[Dict[str, Any]]:
         if self.provider == "mock":
-            # Baseline déterministe (sans réseau) pour le MVP J1
             return None
+
         if self.provider == "openai":
             try:
                 from openai import OpenAI
@@ -24,13 +24,13 @@ class LLMClient:
                     temperature=0.2,
                 )
                 content = resp.choices[0].message.content
-                import json
                 return json.loads(content)
             except Exception:
                 return None
+
         if self.provider == "ollama":
             try:
-                import requests, json
+                import requests
                 base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
                 model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
                 payload = {
@@ -45,4 +45,5 @@ class LLMClient:
                 return json.loads(data.get("response", "{}"))
             except Exception:
                 return None
+
         return None
