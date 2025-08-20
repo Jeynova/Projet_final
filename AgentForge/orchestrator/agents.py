@@ -183,7 +183,9 @@ SYSTEM_PROMPT = (
     "ci ('none' ou 'github_actions'), "
     "security ('baseline' ou 'strict'), "
     "dockerize (true ou false), "
-    "infra ('docker_compose' ou 'k8s'). "
+    "infra ('docker_compose' ou 'k8s'), "
+    "entities (array d'objets avec name et fields). "
+    "EXEMPLE entities: [{'name': 'User', 'fields': ['email', 'password']}, {'name': 'Post', 'fields': ['title', 'content']}]. "
     "IMPORTANT: Utilise EXACTEMENT ces valeurs, pas d'autres variantes !"
 )
 
@@ -202,9 +204,23 @@ def spec_extractor(state):
     print(f"🔍 DEBUG LLM Response: {llm_json}")
     if isinstance(llm_json, dict):
         try:
-            # Parse entities from prompt même avec LLM
-            entities = _parse_entities_from_text(state["prompt"])
-            print(f"🔍 DEBUG Entities parsed: {len(entities)} entities: {[e.name for e in entities]}")
+            # Utiliser les entités du LLM si présentes
+            entities_data = llm_json.get("entities", [])
+            entities = []
+            
+            if entities_data:
+                for entity_data in entities_data:
+                    if isinstance(entity_data, dict) and "name" in entity_data and "fields" in entity_data:
+                        entities.append(EntitySpec(
+                            name=entity_data["name"],
+                            fields=[FieldSpec(name=field, type="str", pk=False, unique=False, nullable=True) 
+                                   for field in entity_data["fields"]]
+                        ))
+                print(f"🔍 DEBUG Entities from LLM: {len(entities)} entities: {[e.name for e in entities]}")
+            else:
+                # Fallback vers pattern-matching si pas d'entités dans LLM
+                entities = _parse_entities_from_text(state["prompt"])
+                print(f"🔍 DEBUG Entities from parsing: {len(entities)} entities: {[e.name for e in entities]}")
             
             spec = ProjectSpec(**{
                 "name": llm_json.get("name", name),
