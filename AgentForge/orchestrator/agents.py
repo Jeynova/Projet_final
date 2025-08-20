@@ -5,6 +5,26 @@ from .project_spec import ProjectSpec, EntitySpec, FieldSpec
 from .utils import render_dir, run_cmd, ensure_dir, write_json
 from colorama import Fore, Style
 from .llm_client import LLMClient
+from .codegen_agent import run_codegen
+from .tech_selector_agent import run_tech_selector
+from .eval_agent import run_eval
+
+def tech_selector(state):    # LLM + RAG
+    return run_tech_selector(state)
+
+def codegen(state):          # LLM + RAG
+    return run_codegen(state)
+
+def eval_agent(state):       # check livrables
+    return run_eval(state)
+
+def retrieve_recipes(state):
+    # ici on ne fait rien de plus que signaler au codegen quels tags utiliser
+    state["logs"].append("RetrieveRecipes: snippets sélectionnés (tags: fastapi, sqlalchemy, crud, pytest).")
+    return state
+
+def codegen(state):          # LLM + RAG
+    return run_codegen(state)
 
 # --- Entity Parser Function ---
 def _parse_entities_from_text(text: str) -> List[EntitySpec]:
@@ -37,10 +57,13 @@ def _parse_entities_from_text(text: str) -> List[EntitySpec]:
         
         entities.append(EntitySpec(name=ename.capitalize(), fields=fields))
     
-    # Default entities for common patterns
+    # Default entities for common patterns - avec déduplication intelligente
     text_lower = text.lower()
-    if "crud:users" in text_lower or "users" in text_lower:
-        if not any(e.name.lower() == "user" for e in entities):
+    existing_names = [e.name.lower() for e in entities]
+    
+    # Éviter les doublons User/Users
+    if any(word in text_lower for word in ["user", "utilisateur", "auth", "login"]):
+        if not any(name in ["user", "users"] for name in existing_names):
             entities.append(EntitySpec(
                 name="User",
                 fields=[
@@ -51,8 +74,9 @@ def _parse_entities_from_text(text: str) -> List[EntitySpec]:
                 ]
             ))
     
-    if "crud:vehicles" in text_lower or "flotte" in text_lower or "fleet" in text_lower:
-        if not any(e.name.lower() == "vehicle" for e in entities):
+    # Éviter les doublons Vehicle/Vehicles
+    if any(word in text_lower for word in ["vehicle", "véhicule", "flotte", "fleet", "car", "voiture"]):
+        if not any(name in ["vehicle", "vehicles"] for name in existing_names):
             entities.append(EntitySpec(
                 name="Vehicle",
                 fields=[
@@ -161,6 +185,9 @@ def spec_extractor(state):
     llm_json = llm.extract_json(SYSTEM_PROMPT, state["prompt"])
     if isinstance(llm_json, dict):
         try:
+            # Parse entities from prompt même avec LLM
+            entities = _parse_entities_from_text(state["prompt"])
+            
             spec = ProjectSpec(**{
                 "name": llm_json.get("name", name),
                 "project_type": llm_json.get("project_type", "api"),
@@ -174,10 +201,11 @@ def spec_extractor(state):
                 "security": llm_json.get("security", "baseline"),
                 "dockerize": llm_json.get("dockerize", True),
                 "infra": llm_json.get("infra", "docker_compose"),
+                "entities": entities  # <-- NEW
             })
             # Pydantic v2 compatibility
             state["spec"] = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
-            state["logs"].append("Spec Extractor: spec dérivée via LLM.")
+            state["logs"].append(f"Spec Extractor: spec dérivée via LLM. Entités détectées: {len(entities)}")
             return state
         except Exception:
             pass

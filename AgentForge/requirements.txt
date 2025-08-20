@@ -7,6 +7,7 @@ typing_extensions==4.12.2
 uvicorn==0.30.1
 pyyaml==6.0.2
 colorama==0.4.6
+sqlalchemy==2.0.23
 
 # LLM Integration
 openai>=1.0.0

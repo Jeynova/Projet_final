@@ -156,3 +156,5 @@ apps/__pycache__/
 .local/
 local.py
 local_settings.py
+GUIDE_ORAL.md
+note.txt

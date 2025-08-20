@@ -2,9 +2,8 @@ import argparse, json
 from typing import TypedDict, List, Dict, Any
 from pathlib import Path
 from langgraph.graph import StateGraph, END
-from .agents import (
-    spec_extractor, planner, scaffolder, security_qa, tester, dockerizer, ci_agent, verifier
-)
+from .agents import spec_extractor, planner, scaffolder, security_qa, tester, dockerizer, ci_agent, verifier
+from .agents import retrieve_recipes, codegen  # NEW
 from .utils import ensure_dir, write_json
 
 class BuildState(TypedDict, total=False):
@@ -17,6 +16,8 @@ class BuildState(TypedDict, total=False):
     logs: List[str]
     status: str
     tests_ok: bool
+    tech_selection: Dict[str, Any]  # NEW - pour tech_selector
+    eval: Dict[str, Any]  # NEW - pour eval_agent
 
 def build_app():
     graph = StateGraph(BuildState)
@@ -28,10 +29,14 @@ def build_app():
     graph.add_node("ci_agent", ci_agent)
     graph.add_node("tester", tester)
     graph.add_node("verifier", verifier)
+    graph.add_node("retrieve_recipes", retrieve_recipes)
+    graph.add_node("codegen", codegen)
 
     graph.set_entry_point("spec_extractor")
     graph.add_edge("spec_extractor", "planner")
     graph.add_edge("planner", "scaffolder")
+    graph.add_edge("scaffolder", "retrieve_recipes")
+    graph.add_edge("retrieve_recipes", "codegen")
     graph.add_edge("scaffolder", "security_qa")
     graph.add_edge("security_qa", "dockerizer")
     graph.add_edge("dockerizer", "ci_agent")
