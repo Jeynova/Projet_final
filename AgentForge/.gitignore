@@ -161,3 +161,8 @@ note.txt
 DOCUMENTATION_ORAL.md
 NOTES_VALIDATION.md
 METRIQUES_ORAL.md
+# Documentation orale (privée)
+*_ORAL.md
+docs_oral/
+presentation/
+*.pptx

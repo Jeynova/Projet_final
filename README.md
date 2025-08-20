@@ -220,28 +220,6 @@ AgentForge/
 - Configuration Docker
 - CI/CD GitHub Actions
 
-## Pour l'Oral - Points Clés
-
-### Innovation Technique
-1. Approche Hybride : LLM pour compréhension + générateur déterministe
-2. Robustesse : Fonctionnel même sans connexion LLM
-3. Qualité : Templates éprouvés vs génération aléatoire
-
-### Architecture Scalable 
-1. Multi-agents : Séparation des responsabilités
-2. Pipeline modulaire : Agents remplaçables
-3. Extensibilité : Nouveaux templates facilement ajoutables
-
-### Résultats Mesurables
-1. 100% de taux de réussite sur les tests
-2. 27 fichiers générés automatiquement 
-3. Score parfait en évaluation automatique
-
-### Valeur Business
-1. Gain de temps : API complète en quelques secondes
-2. Qualité garantie : Code structuré et maintenable 
-3. Standardisation : Patterns cohérents entre projets
-
 ## Licence
 
 MIT - Voir [LICENSE](LICENSE) pour plus de détails.
