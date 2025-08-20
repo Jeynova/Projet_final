@@ -73,51 +73,132 @@ def generate():
     """Generate a complete project from prompt"""
     prompt = request.form.get("prompt", "").strip()
     name = request.form.get("name", "").strip() or "generated-app"
+    llm_mode = request.form.get("llm_mode", "mock").strip()  # NEW: choix du mode LLM
+    
     if not prompt:
         return redirect(url_for("index"))
 
-    app_graph = build_graph()
-    state = {"prompt": prompt, "name": name, "artifacts_dir": str(GENERATED), "logs": []}
-    final = app_graph.invoke(state)
+    # NEW: configuration temporaire du LLM selon le choix utilisateur
+    original_llm = os.environ.get("AGENTFORGE_LLM", "mock")
+    os.environ["AGENTFORGE_LLM"] = llm_mode
     
-    project_dir = Path(final["project_dir"])
-    zip_path = zip_project(project_dir)
-
-    # NEW: persist project in database
-    db = SessionLocal()
+    print(f"🔧 DEBUG Flask: llm_mode={llm_mode}, AGENTFORGE_LLM={os.environ.get('AGENTFORGE_LLM')}")
+    
     try:
-        p = Project(
-            name=name,
-            prompt=prompt,
-            status=final.get("status", "unknown"),
-            project_path=str(project_dir),
-            zip_path=str(zip_path),
-            logs_path=str(GENERATED / f"{name}_logs.json"),  # Assuming logs are saved here
-        )
-        db.add(p)
-        db.commit()
-        project_id = p.id
-    finally:
-        db.close()
+        app_graph = build_graph()
+        state = {"prompt": prompt, "name": name, "artifacts_dir": str(GENERATED), "logs": []}
+        print(f"🚀 DEBUG Flask: Démarrage génération avec LLM={os.environ.get('AGENTFORGE_LLM')}")
+        final = app_graph.invoke(state)
+        print(f"✅ DEBUG Flask: Génération terminée, status={final.get('status', 'unknown')}")
+        
+        project_dir = Path(final["project_dir"])
+        zip_path = zip_project(project_dir)
 
-    logs = final.get("logs", [])
-    status = final.get("status", "unknown")
-    return render_template(
-        "result.html",
-        prompt=prompt,
-        name=name,
-        logs=logs,
-        status=status,
-        download_url=url_for("download_zip", filename=zip_path.name),
-        project_path=str(project_dir),
-        project_id=project_id,
-    )
+        # NEW: persist project in database
+        db = SessionLocal()
+        try:
+            p = Project(
+                name=name,
+                prompt=prompt,
+                status=final.get("status", "unknown"),
+                project_path=str(project_dir),
+                zip_path=str(zip_path),
+                logs_path=str(GENERATED / f"{name}_logs.json"),  # Assuming logs are saved here
+            )
+            db.add(p)
+            db.commit()
+            project_id = p.id
+        finally:
+            db.close()
+
+        logs = final.get("logs", [])
+        status = final.get("status", "unknown")
+        
+        # NEW: ajouter les infos du mode LLM utilisé
+        llm_info = {
+            "mode": llm_mode,
+            "mode_name": {
+                "mock": "Fallback Déterministe (Rapide)",
+                "ollama": "Ollama Local (Gratuit)",
+                "openai": "OpenAI (Intelligent)"
+            }.get(llm_mode, llm_mode)
+        }
+        
+        return render_template(
+            "result.html",
+            prompt=prompt,
+            name=name,
+            logs=logs,
+            status=status,
+            download_url=url_for("download_zip", filename=zip_path.name),
+            project_path=str(project_dir),
+            project_id=project_id,
+            llm_info=llm_info,  # NEW
+        )
+    finally:
+        # Restore original LLM setting
+        os.environ["AGENTFORGE_LLM"] = original_llm
 
 @app.get("/download/<path:filename>")
 def download_zip(filename):
     """Download generated project zip file"""
     f = GENERATED / filename
     return send_file(f, as_attachment=True)
+
+# NEW: endpoint pour tester les modes LLM
+@app.get("/api/llm-status")
+def llm_status():
+    """Check status of different LLM providers"""
+    from core.llm_client import LLMClient
+    
+    status = {}
+    
+    # Test Mock
+    status["mock"] = {
+        "available": True,
+        "name": "Fallback Déterministe",
+        "description": "Ultra-rapide, fiable, sans coût",
+        "speed": "0.03s"
+    }
+    
+    # Test Ollama
+    try:
+        import requests
+        resp = requests.get("http://localhost:11434/api/tags", timeout=2)
+        if resp.status_code == 200:
+            models = resp.json().get("models", [])
+            status["ollama"] = {
+                "available": True,
+                "name": "Ollama Local",
+                "description": f"Modèles disponibles: {len(models)}",
+                "models": [m.get("name", "unknown") for m in models[:3]]
+            }
+        else:
+            status["ollama"] = {"available": False, "error": "Service unavailable"}
+    except:
+        status["ollama"] = {"available": False, "error": "Not running"}
+    
+    # Test OpenAI
+    try:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if api_key and api_key.startswith("sk-"):
+            status["openai"] = {
+                "available": True,
+                "name": "OpenAI",
+                "description": "Très intelligent, coût par usage",
+                "model": os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+            }
+        else:
+            status["openai"] = {"available": False, "error": "No API key"}
+    except:
+        status["openai"] = {"available": False, "error": "Configuration error"}
+    
+    current_mode = os.environ.get("AGENTFORGE_LLM", "mock")
+    
+    return {
+        "current_mode": current_mode,
+        "providers": status
+    }
 
 # NEW: build & push image vers un registre (Docker Hub / GHCR)
 @app.post("/push-image/<int:project_id>")

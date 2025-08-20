@@ -4,7 +4,7 @@ import re
 from .project_spec import ProjectSpec, EntitySpec, FieldSpec
 from .utils import render_dir, run_cmd, ensure_dir, write_json
 from colorama import Fore, Style
-from .llm_client import LLMClient
+from core.llm_client import LLMClient  # FIX: Correct import path
 from .codegen_agent import run_codegen
 from .tech_selector_agent import run_tech_selector
 from .eval_agent import run_eval
@@ -171,22 +171,40 @@ def verifier(state: Dict[str, Any]) -> Dict[str, Any]:
 
 SYSTEM_PROMPT = (
     "Tu es un extracteur qui convertit une demande en spec de projet. "
-    "Renvoie strictement un JSON avec ces champs: "
-    "name, project_type, language, web, db, auth, features, tests, ci, security, dockerize, infra."
+    "Renvoie strictement un JSON avec ces champs EXACTEMENT: "
+    "name (string), "
+    "project_type ('api' ou 'webapp' ou 'worker'), "
+    "language ('python' ou 'node'), "
+    "web ('fastapi' ou 'flask' ou 'express'), "
+    "db ('postgres' ou 'sqlite' ou 'mysql' ou 'none'), "
+    "auth ('none' ou 'jwt' ou 'session'), "
+    "features (array de strings), "
+    "tests ('none' ou 'basic' ou 'crud'), "
+    "ci ('none' ou 'github_actions'), "
+    "security ('baseline' ou 'strict'), "
+    "dockerize (true ou false), "
+    "infra ('docker_compose' ou 'k8s'). "
+    "IMPORTANT: Utilise EXACTEMENT ces valeurs, pas d'autres variantes !"
 )
 
 # --- Agent 0: Spec Extractor (with LLM support and heuristic fallback) ---
 def spec_extractor(state):
+    # Initialize logs if not present
+    if "logs" not in state:
+        state["logs"] = []
+        
     prompt = state["prompt"].lower()
     name = state.get("name") or "generated-app"
 
     # 1) Tentative LLM si configuré
     llm = LLMClient()
     llm_json = llm.extract_json(SYSTEM_PROMPT, state["prompt"])
+    print(f"🔍 DEBUG LLM Response: {llm_json}")
     if isinstance(llm_json, dict):
         try:
             # Parse entities from prompt même avec LLM
             entities = _parse_entities_from_text(state["prompt"])
+            print(f"🔍 DEBUG Entities parsed: {len(entities)} entities: {[e.name for e in entities]}")
             
             spec = ProjectSpec(**{
                 "name": llm_json.get("name", name),
@@ -206,8 +224,10 @@ def spec_extractor(state):
             # Pydantic v2 compatibility
             state["spec"] = spec.model_dump() if hasattr(spec, 'model_dump') else spec.dict()
             state["logs"].append(f"Spec Extractor: spec dérivée via LLM. Entités détectées: {len(entities)}")
+            print(f"✅ DEBUG LLM Success: Using LLM spec with {len(entities)} entities")
             return state
-        except Exception:
+        except Exception as e:
+            print(f"❌ DEBUG LLM Exception: {e}")
             pass
 
     # 2) Fallback heuristique (comme avant)

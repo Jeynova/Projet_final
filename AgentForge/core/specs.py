@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List
 
+class Entity(BaseModel):
+    name: str
+    fields: List[str] = []
+
 class ProjectSpec(BaseModel):
     name: str = Field(..., description="Nom du projet/dépôt")
     project_type: Literal["api", "webapp", "worker"] = "api"
@@ -14,6 +18,7 @@ class ProjectSpec(BaseModel):
     security: Literal["baseline", "strict"] = "baseline"
     dockerize: bool = True
     infra: Optional[Literal["docker_compose", "k8s"]] = "docker_compose"
+    entities: List[Entity] = []  # NEW
 
     def title(self) -> str:
         return self.name.replace(" ", "-")

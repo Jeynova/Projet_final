@@ -32,17 +32,21 @@ class LLMClient:
             try:
                 import requests, json
                 base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                model = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+                model = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+                print(f"🔧 DEBUG Ollama: base={base}, model={model}")
                 payload = {
                     "model": model,
                     "prompt": f"{system_prompt}\n\n{user_prompt}\nRéponds en JSON valide uniquement.",
                     "format": "json",
                     "stream": False,
                 }
+                print(f"🚀 DEBUG Ollama: Envoi requête...")
                 r = requests.post(f"{base}/api/generate", json=payload, timeout=120)
                 r.raise_for_status()
                 data = r.json()
+                print(f"✅ DEBUG Ollama: Réponse reçue: {data.get('response', '')[:100]}...")
                 return json.loads(data.get("response", "{}"))
-            except Exception:
+            except Exception as e:
+                print(f"❌ DEBUG Ollama: Exception: {e}")
                 return None
         return None

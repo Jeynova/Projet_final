@@ -14,6 +14,13 @@
       {% endif %}
     </p>
     
+    <!-- NEW: Information sur le mode LLM utilisé -->
+    {% if llm_info %}
+    <p><strong>Mode de génération:</strong> 
+      <span class="llm-mode-used">{{ llm_info.mode_name }}</span>
+    </p>
+    {% endif %}
+    
     <div class="actions">
       <a href="{{ download_url }}" class="btn btn-primary">📦 Télécharger ZIP</a>
       {% if project_id %}

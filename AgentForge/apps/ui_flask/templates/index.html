@@ -7,6 +7,37 @@
     <label for="name">Nom du projet (slug) :</label>
     <input id="name" name="name" placeholder="ex: fleet-api" />
     
+    <!-- NEW: Choix du mode LLM -->
+    <label for="llm_mode">Mode de génération :</label>
+    <div class="llm-selector">
+      <div class="llm-option">
+        <input type="radio" id="llm_mock" name="llm_mode" value="mock" checked>
+        <label for="llm_mock" class="llm-label">
+          <span class="llm-name">⚡ Fallback Déterministe</span>
+          <span class="llm-desc">Ultra-rapide (0.03s), 100% fiable, gratuit</span>
+          <span class="llm-status" id="status-mock">✅ Toujours disponible</span>
+        </label>
+      </div>
+      
+      <div class="llm-option">
+        <input type="radio" id="llm_ollama" name="llm_mode" value="ollama">
+        <label for="llm_ollama" class="llm-label">
+          <span class="llm-name">🤖 Ollama Local</span>
+          <span class="llm-desc">IA locale, gratuit, plus intelligent</span>
+          <span class="llm-status" id="status-ollama">⏳ Vérification...</span>
+        </label>
+      </div>
+      
+      <div class="llm-option">
+        <input type="radio" id="llm_openai" name="llm_mode" value="openai">
+        <label for="llm_openai" class="llm-label">
+          <span class="llm-name">🧠 OpenAI</span>
+          <span class="llm-desc">Très intelligent, coût par usage</span>
+          <span class="llm-status" id="status-openai">⏳ Vérification...</span>
+        </label>
+      </div>
+    </div>
+    
     <div class="form-actions">
       <button type="submit">👁️ Prévisualiser</button>
       <button type="submit" formaction="/generate" class="btn-primary">🚀 Générer directement</button>
@@ -40,4 +71,49 @@
     </ul>
   </section>
   {% endif %}
+
+  <script>
+    // Vérifier le statut des LLM au chargement
+    fetch('/api/llm-status')
+      .then(response => response.json())
+      .then(data => {
+        // Mock
+        document.getElementById('status-mock').textContent = '✅ Toujours disponible';
+        
+        // Ollama
+        const ollamaStatus = document.getElementById('status-ollama');
+        if (data.providers.ollama.available) {
+          ollamaStatus.textContent = `✅ Disponible (${data.providers.ollama.models ? data.providers.ollama.models.join(', ') : 'OK'})`;
+          ollamaStatus.style.color = 'green';
+        } else {
+          ollamaStatus.textContent = `❌ ${data.providers.ollama.error}`;
+          ollamaStatus.style.color = 'red';
+          document.getElementById('llm_ollama').disabled = true;
+        }
+        
+        // OpenAI
+        const openaiStatus = document.getElementById('status-openai');
+        if (data.providers.openai.available) {
+          openaiStatus.textContent = `✅ Configuré (${data.providers.openai.model})`;
+          openaiStatus.style.color = 'green';
+        } else {
+          openaiStatus.textContent = `❌ ${data.providers.openai.error}`;
+          openaiStatus.style.color = 'red';
+          document.getElementById('llm_openai').disabled = true;
+        }
+        
+        // Sélectionner le mode actuel si disponible
+        if (data.current_mode && data.current_mode !== 'mock') {
+          const currentRadio = document.getElementById(`llm_${data.current_mode}`);
+          if (currentRadio && !currentRadio.disabled) {
+            currentRadio.checked = true;
+          }
+        }
+      })
+      .catch(error => {
+        console.error('Erreur vérification LLM:', error);
+        document.getElementById('status-ollama').textContent = '❌ Erreur vérification';
+        document.getElementById('status-openai').textContent = '❌ Erreur vérification';
+      });
+  </script>
 {% endblock %}

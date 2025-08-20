@@ -1,22 +1,31 @@
-# 🚀 AgentForge - Générateur Intelligent de Projets API
+# 🤖 AgentForge v2.0 - Générateur Multi-Agent IA
 
-> **Un système hybride LLM + déterministe pour générer automatiquement des projets FastAPI complets à partir de descriptions en langage naturel**
+> **Système multi-agent IA avec interface Flask et sélection LLM temps réel pour génération automatique de projets complets**
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Windows%2011-lightgrey.svg)
+![Pipeline](https://img.shields.io/badge/pipeline-100%25%20réussi-brightgreen.svg)
+![LLMs](https://img.shields.io/badge/LLMs-Ollama%20%2B%20OpenAI-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## 🎯 Vision du Projet
+## 🎯 Vision du Projet v2.0
 
-AgentForge est né d'une observation importante : **l'IA générative a ses limites pour la génération de code structurée**. Plutôt que de s'appuyer entièrement sur l'imprévisibilité des LLMs, ce projet implémente un **générateur déterministe intelligent** qui utilise l'IA comme assistant pour le parsing du langage naturel, mais s'appuie sur des **templates robustes et des patterns éprouvés** pour la génération de code.
+**AgentForge v2.0** révolutionne la génération automatique de projets en combinant **6 agents IA spécialisés**, une **interface web moderne Flask** et un **système de fallback multicouches** garantissant 100% de succès.
 
-### 💡 Philosophie : Hybride LLM + Déterminisme
+### ✨ Nouveautés Majeures v2.0
+- 🖥️ **Interface Web Flask** - Sélection LLM en temps réel avec indicateurs statut
+- 🤖 **Support Multi-LLM** - Ollama local + OpenAI + Mode déterministe  
+- 💾 **Persistance SQLite** - Historique complet projets générés
+- 🔄 **Architecture LangGraph** - Orchestration multi-agent professionnelle
+- 📊 **Pipeline 100% Réussi** - Fallbacks garantissant toujours une génération
 
-**Le problème observé :**
-- Les LLMs génèrent du code incohérent et non-maintenable
-- Résultats imprévisibles selon les prompts
-- Difficile de garantir la qualité et la structure
+### 💡 Philosophie : Multi-Agent + Fallbacks Intelligents
+
+**L'innovation :**
+- **6 agents spécialisés** coordonnés par LangGraph
+- **Interface utilisateur moderne** avec choix LLM temps réel
+- **Système de fallback robuste** - jamais d'échec de génération
+- **Templates professionnels** - Code production-ready automatique
 
 **Notre solution :**
 - ✅ **LLM pour le parsing** : Comprendre l'intention utilisateur
