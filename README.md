@@ -97,7 +97,8 @@ docker-compose up --build
 ```
 
 L'équipe complète peut démarrer le développement immédiatement sans phase de configuration préalable.
-
+```
+Projet/
 │ │ ├── __init__.py
 │ │ ├── user.py # User SQLAlchemy model
 │ │ └── task.py # Task SQLAlchemy model 
