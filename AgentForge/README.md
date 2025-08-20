@@ -1,102 +1,73 @@
 # AgentForge v2.0 - Générateur de Boilerplates Intelligents
 
-Un outil qui génère des boilerplates complets et prêts pour la production. Décrivez votre projet en français, récupérez une base de code structurée avec Docker, tests et CI/CD - parfait pour que toute l'équipe puisse démarrer immédiatement.
+Générateur de boilerplates complets pour démarrer rapidement des projets en équipe. Décrivez votre projet, récupérez une architecture complète avec Docker, tests, CI/CD - prêt pour que toute l'équipe puisse commencer immédiatement.
 
 ![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)
-![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)
-![LLM](https://img.shields.io/badge/LLM-Ollama%20%2B%20OpenAI-orange.svg)
+![Pipeline](https://img.shields.io/badge/pipeline-100%25%20success-brightgreen.svg)
+![LLMs](https://img.shields.io/badge/LLMs-Ollama%20%2B%20OpenAI-orange.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## Le problème qu'on résout
+## Vue d'ensemble
 
-Démarrer un nouveau projet en équipe implique toujours les mêmes défis :
-- 2-3 jours nécessaires pour configurer l'architecture de base
-- Discussions techniques sur les choix de stack (FastAPI vs Django, PostgreSQL vs MySQL)
-- Configuration Docker fonctionnant sur certaines machines mais pas d'autres
-- Tests de base à écrire, CI/CD à configurer
-- Documentation et variables d'environnement à définir
+AgentForge v2.0 génère des boilerplates de projets complets à partir de descriptions en langage naturel. Le système utilise une architecture multi-agent avec LLM pour comprendre vos besoins et générer du code structuré prêt pour la production et le travail en équipe.
 
-Avec AgentForge, décrivez votre projet ("Application de gestion de stock avec dashboard admin") et obtenez immédiatement un boilerplate complet pour que l'équipe puisse se concentrer sur la logique métier.
+### Caractéristiques principales
 
-## Pas que des APIs !
+- **Boilerplates complets** : Backend + Frontend + Infrastructure + CI/CD
+- **Intelligence LLM** : Analyse contextuelle avec Ollama (llama3.1) et OpenAI
+- **Interface Web moderne** : Génération interactive avec feedback visuel
+- **Architecture LangGraph** : Orchestration multi-agent pour génération cohérente
+- Persistance complète : Base SQLite avec historique et métadonnées
+- Code production-ready : Templates industriels avec tests automatisés
 
-Le système génère des boilerplates complets pour différents types de projets :
+### Prototypage rapide
 
-**APIs & Backend**
-- FastAPI avec PostgreSQL pour les services REST
-- Django pour les applications web complexes  
-- Flask pour les microservices légers
+Le cœur du système repose sur l'intelligence artificielle :
+- Analyse sémantique : Compréhension des intentions métier depuis le langage naturel
+- Inférence d'entités : Extraction automatique de modèles de données complexes
+- Recommandations contextuelles : Choix technologiques basés sur l'analyse du besoin
+- Fallbacks configurables : Mode déterministe disponible en cas de besoin
 
-**Applications complètes**  
-- React/Vue.js frontend avec backend API
-- Applications desktop avec Electron
-- Scripts et outils CLI
+## Exemple Concret : API de Gestion de Tâches
 
-**Infrastructure incluse**
-- Configuration Docker multi-service
-- CI/CD GitHub Actions
-- Variables d'environnement documentées
-- Scripts de déploiement
-- Documentation développeur
-
-## Exemple concret - Démarrage projet équipe
-
-Disons que votre équipe doit développer une "Application de gestion de stock avec dashboard admin". Au lieu de consacrer 3 jours à la configuration, vous saisissez cette description et obtenez un boilerplate complet :
-
-### Ce qui est généré pour l'équipe
-
+### Description du besoin
 ```
-stock-manager/
-├── backend/                 # API FastAPI
-│   ├── src/
-│   │   ├── models/          # Modèles Stock, Product, User
-│   │   ├── routes/          # CRUD + endpoints métier
-│   │   └── services/        # Logique business
-│   ├── tests/               # Tests automatisés
-│   └── Dockerfile           # Container backend
-├── frontend/                # Dashboard React
-│   ├── src/
-│   │   ├── components/      # Composants UI
-│   │   ├── pages/           # Pages Stock/Admin
-│   │   └── services/        # API client
-│   ├── package.json         # Dependencies npm
-│   └── Dockerfile           # Container frontend
-├── docker-compose.yml       # Orchestration complète
-├── .github/workflows/       # CI/CD automatique
-├── .env.example            # Variables d'équipe
-├── README.md               # Documentation développeur
-└── scripts/                # Scripts de développement
-    ├── setup.sh            # Installation locale
-    ├── test.sh             # Lancement tests
-    └── deploy.sh           # Déploiement
+"Créer une API pour gérer des tâches avec users(email unique, password_hash, created_at) 
+et tasks(title, description, status enum, due_date optional, completed boolean, user_id FK)"
 ```
 
-### Prêt pour l'équipe en 5 secondes
+### Génération automatique
 
-**Paul (backend dev)** :
-```bash
-git clone le-repo
-cd stock-manager/backend
-docker-compose up db
-python -m uvicorn src.main:app --reload
-# API dispo sur localhost:8000 avec Swagger
+Étape 1 : Analyse du langage naturel
+```python
+# AgentForge identifie automatiquement :
+entities = [
+ User(id=int, email=str(unique=True), password_hash=str, created_at=datetime),
+ Task(id=int, title=str, description=str, status=TaskStatus, 
+ due_date=datetime(nullable=True), completed=bool, user_id=int(FK))
+]
 ```
 
-**Marie (frontend dev)** :
-```bash  
-cd stock-manager/frontend
-npm install
-npm run dev
-# Dashboard sur localhost:3000, connecté à l'API
-```
+Étape 2 : Sélection technique automatique
+- Framework: FastAPI (détecté via analyse pattern)
+- Base de données: PostgreSQL (recommandé pour production) 
+- ORM: SQLAlchemy 2.0 (async)
+- Tests: PyTest + FastAPI TestClient
 
-**Jacques (devops)** :
-```bash
-docker-compose up --build
-# Stack complète en mode production
-```
+Étape 3 : Génération de code complet
 
-L'équipe complète peut démarrer le développement immédiatement sans phase de configuration préalable.
+<details>
+<summary> Structure générée (27 fichiers)</summary>
+
+```
+task-api/
+├── src/
+│ ├── __init__.py
+│ ├── main.py # FastAPI app avec routes
+│ ├── db.py # Configuration SQLAlchemy async 
+│ ├── security.py # JWT auth + password hashing
+│ ├── models/
 │ │ ├── __init__.py
 │ │ ├── user.py # User SQLAlchemy model
 │ │ └── task.py # Task SQLAlchemy model 
@@ -509,38 +480,31 @@ Output:
 - Modèles avec relations et contraintes 
 - Tests unitaires et d'intégration
 - Documentation OpenAPI automatique
-## Cas d'usage - Pourquoi les équipes l'utilisent
-
-### Démarrage projet équipe
-```
-Besoin: "Nouvelle feature de gestion de stock avec dashboard admin"
-Problème: 2-3 jours pour setup l'architecture
-Solution AgentForge: Boilerplate complet en 5 secondes
-Résultat: Toute l'équipe peut coder le métier immédiatement
+- Configuration Docker production-ready
 ```
 
-### Prototypage et POC
-```  
-Besoin: "Valider rapidement une idée d'application mobile"
-Problème: Passer plus de temps sur la config que sur l'idée
-Solution AgentForge: API + interface + Docker générés automatiquement
-Résultat: Focus sur la validation métier, pas la plomberie
+### Prototypage rapide
+```
+Input: "Blog API avec posts et comments"
+
+Output en ~3 secondes:
+- Structure FastAPI complète
+- CRUD pour chaque entité 
+- Base de données SQLite
+- Interface Swagger générée
+- Tests PyTest fonctionnels
 ```
 
-### Microservices cohérents
+### Projets étudiants/apprentissage
 ```
-Besoin: "Ajouter un service de notification à notre écosystème"
-Problème: Maintenir la cohérence des standards entre services
-Solution AgentForge: Templates standardisés avec mêmes patterns
-Résultat: Nouveau service intégré et cohérent avec l'existant
-```
+Input: "API e-commerce avec products, orders, customers"
 
-### Formation et apprentissage
-```
-Besoin: "Enseigner le développement web moderne"
-Problème: Étudiants perdent du temps sur la config technique  
-Solution AgentForge: Base professionnelle pour se concentrer sur les concepts
-Résultat: Apprentissage efficace des bonnes pratiques
+Output pédagogique:
+- Code commenté et structuré
+- Patterns industriels appliqués
+- Tests comme documentation vivante 
+- Containerisation pour démo
+- README détaillé
 ```
 
 ## Contributions et Développement
