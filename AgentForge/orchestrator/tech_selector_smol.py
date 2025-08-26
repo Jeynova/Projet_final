@@ -61,7 +61,13 @@ def _parse_json_strict(text: str) -> dict:
 INSTR = """
 Tu es un architecte logiciel expert. Recommande une stack technique moderne pour un projet Python.
 
-Réponds UNIQUEMENT en JSON: {"web": "...", "db": "...", "infra": "...", "ci": "...", "reasons": [...], "confidence": 0.xx}
+IMPORTANT: 
+- COMMENCE TOUJOURS par: import json
+- Utilise SEULEMENT ces imports autorisés: json, re, random, math, time, datetime, collections, itertools
+- Ne pas utiliser: pprint, pandas, numpy ou autres modules non listés.
+- ATTENTION: final_answer() est une FONCTION, ne pas l'utiliser comme variable!
+
+Réponds avec final_answer(json.dumps(result)) où result est: {"web": "...", "db": "...", "infra": "...", "ci": "...", "reasons": [...], "confidence": 0.xx}
 
 Choisis librement parmi TOUTES les technologies Python modernes :
 - Web: FastAPI, Flask, Django, Starlette, Tornado, Quart, etc.
@@ -76,6 +82,12 @@ Justifie tes choix dans "reasons" selon :
 - Contraintes techniques mentionnées
 
 Si l'utilisateur impose explicitement une technologie, RESPECTE-LA.
+
+ÉTAPES:
+1. import json
+2. retrieve_snippets(...) 
+3. result = {"web": "...", "db": "...", ...}
+4. final_answer(json.dumps(result))  # FONCTION pas variable!
 """
 
 def _model_from_env():
@@ -275,9 +287,18 @@ DESCRIPTION:
 SPEC INITIALE:
 {json.dumps(state['spec'], ensure_ascii=False, indent=2)}
 
+CONTRAINTES IMPORTANTES:
+- TOUJOURS commencer par: import json
+- final_answer() est une FONCTION - APPELLE-LA avec: final_answer(json.dumps(dict))
+- Ne JAMAIS écrire: final_answer = quelque_chose
+- Utilise SEULEMENT les imports autorisés: json, re, random, math, time, datetime, collections, itertools
+- PAS de pprint, pandas, numpy, ou autres modules
+
 ACTIONS:
-1) retrieve_snippets(tags="fastapi,flask,django,starlette,postgres,sqlite,mysql,mongodb,redis,clickhouse,k8s,docker,ci,github,gitlab,jenkins") pour notes
-2) Renvoie UNIQUEMENT le JSON demandé
+1) import json (OBLIGATOIRE en premier)
+2) retrieve_snippets(tags="fastapi,flask,django,starlette,postgres,sqlite,mysql,mongodb,redis,clickhouse,k8s,docker,ci,github,gitlab,jenkins") pour notes
+3) Crée ton dict de résultat
+4) APPELLE: final_answer(json.dumps(ton_dict))  # FONCTION!
 """
         
         out = agent.run(INSTR + "\n\n" + user_prompt)

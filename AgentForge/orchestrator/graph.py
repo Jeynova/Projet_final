@@ -3,9 +3,13 @@ from typing import TypedDict, List, Dict, Any, Annotated
 from pathlib import Path
 from langgraph.graph import StateGraph, END
 from operator import add
+from dotenv import load_dotenv
 from .agents import spec_extractor, planner, scaffolder, security_qa, tester, dockerizer, ci_agent, verifier
 from .agents import retrieve_recipes, codegen  # NEW
 from .utils import ensure_dir, write_json
+
+# Load environment variables
+load_dotenv()
 
 # Feature flag
 AGENTIC = os.getenv("AGENTFORGE_AGENTIC", "0") == "1"
