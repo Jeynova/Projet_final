@@ -96,16 +96,35 @@ def _parse_entities_from_text(text: str) -> List[EntitySpec]:
 
 # --- Agent 1: Planner ---
 def planner(state: Dict[str, Any]) -> Dict[str, Any]:
+    # Utiliser la sélection technique si disponible
+    sel = state.get("tech_selection", {})
+    web = sel.get("web") or state["spec"].get("web", "fastapi")
+    db = sel.get("db") or state["spec"].get("db", "postgres")
+    
+    # Merger dans spec pour cohérence
+    state["spec"]["web"] = web
+    state["spec"]["db"] = db
+    
     spec = ProjectSpec(**state["spec"])
-    # Sélection du preset
-    if spec.language == "python" and spec.project_type == "api" and spec.db == "postgres":
-        preset = "api_fastapi_postgres" if spec.web == "fastapi" else "api_flask_postgres"
-    elif spec.language == "python" and spec.project_type == "api" and spec.db == "sqlite":
-        preset = "api_flask_sqlite" if spec.web == "flask" else "api_fastapi_sqlite"
+    
+    # Sélection du preset basée sur la stack choisie
+    if spec.language == "python" and spec.project_type == "api":
+        if web == "fastapi" and db == "postgres":
+            preset = "api_fastapi_postgres"
+        elif web == "flask" and db == "sqlite":
+            preset = "api_flask_sqlite"
+        elif web == "flask" and db == "postgres":
+            preset = "api_flask_postgres" 
+        elif web == "fastapi" and db == "sqlite":
+            preset = "api_fastapi_sqlite"
+        else:
+            preset = "api_fastapi_postgres"
+            state["logs"].append(f"Planner: combo {web}+{db} non supporté -> fallback {preset}")
     else:
         preset = "api_fastapi_postgres"
+        
     state["preset"] = preset
-    state["logs"].append(f"Planner: preset choisi = {preset}.")
+    state["logs"].append(f"Planner: preset choisi = {preset} (web={web}, db={db})")
     return state
 
 # --- Agent 2: Scaffolder ---

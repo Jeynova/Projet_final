@@ -113,6 +113,7 @@ def generate():
 
         logs = final.get("logs", [])
         status = final.get("status", "unknown")
+        tech = final.get("tech_selection")  # NEW: récupérer la sélection tech
         
         # NEW: ajouter les infos du mode LLM utilisé
         llm_info = {
@@ -134,6 +135,7 @@ def generate():
             project_path=str(project_dir),
             project_id=project_id,
             llm_info=llm_info,  # NEW
+            tech=tech,  # NEW: ajout de la sélection tech
         )
     finally:
         # Restore original LLM setting

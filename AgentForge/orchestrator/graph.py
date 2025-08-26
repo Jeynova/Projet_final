@@ -1,4 +1,4 @@
-import argparse, json
+import argparse, json, os
 from typing import TypedDict, List, Dict, Any, Annotated
 from pathlib import Path
 from langgraph.graph import StateGraph, END
@@ -6,6 +6,15 @@ from operator import add
 from .agents import spec_extractor, planner, scaffolder, security_qa, tester, dockerizer, ci_agent, verifier
 from .agents import retrieve_recipes, codegen  # NEW
 from .utils import ensure_dir, write_json
+
+# Feature flag
+AGENTIC = os.getenv("AGENTFORGE_AGENTIC", "0") == "1"
+
+if AGENTIC:
+    try:
+        from .tech_selector_smol import run_tech_selector_smol
+    except ImportError:
+        AGENTIC = False  # Fallback si smolagents pas disponible
 
 class BuildState(TypedDict, total=False):
     prompt: str  # Single value, no updates expected
@@ -23,15 +32,25 @@ class BuildState(TypedDict, total=False):
 def build_app():
     graph = StateGraph(BuildState)
     
-    # Noeuds principaux seulement pour debug
+    # Noeuds principaux
     graph.add_node("spec_extractor", spec_extractor)
-    graph.add_node("planner", planner)
+    
+    # Injection conditionnelle du TechSelector
+    if AGENTIC:
+        graph.add_node("tech_selector", run_tech_selector_smol)
+        graph.add_node("planner", planner)
+        graph.set_entry_point("spec_extractor")
+        graph.add_edge("spec_extractor", "tech_selector")
+        graph.add_edge("tech_selector", "planner")
+    else:
+        graph.add_node("planner", planner)
+        graph.set_entry_point("spec_extractor")
+        graph.add_edge("spec_extractor", "planner")
+    
     graph.add_node("scaffolder", scaffolder)
     graph.add_node("codegen", codegen)
     
-    # Flow simple et linéaire
-    graph.set_entry_point("spec_extractor")
-    graph.add_edge("spec_extractor", "planner")
+    # Flow après planner identique
     graph.add_edge("planner", "scaffolder")
     graph.add_edge("scaffolder", "codegen")
     graph.add_edge("codegen", END)

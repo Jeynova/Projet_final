@@ -21,6 +21,14 @@
     </p>
     {% endif %}
     
+    <!-- NEW: Affichage de la décision technique IA -->
+    {% if tech %}
+    <div class="tech-selection">
+      <h4>🤖 Décision IA (Stack Technique)</h4>
+      <pre class="tech-json">{{ tech | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+    
     <div class="actions">
       <a href="{{ download_url }}" class="btn btn-primary">📦 Télécharger ZIP</a>
       {% if project_id %}
