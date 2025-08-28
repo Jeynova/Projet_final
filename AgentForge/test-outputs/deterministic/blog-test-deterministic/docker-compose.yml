@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  api:
+    build: .
+    container_name: blog-test-deterministic-api
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://postgres:postgres@db:5432/blog-test-deterministic
+      - JWT_SECRET=devsecret
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+  db:
+    image: postgres:16
+    container_name: blog-test-deterministic-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: blog-test-deterministic
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+volumes:
+  dbdata: {}
