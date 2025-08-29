@@ -48,5 +48,50 @@ class LLMClient:
                 return json.loads(data.get("response", "{}"))
             except Exception as e:
                 print(f"❌ DEBUG Ollama: Exception: {e}")
+                # Try to fix common JSON issues
+                try:
+                    response_text = data.get("response", "{}")
+                    print(f"🔧 DEBUG Ollama: Attempting JSON repair on: {response_text[:200]}...")
+                    
+                    # Common fixes for malformed JSON
+                    fixed_json = response_text
+                    
+                    # Fix trailing commas
+                    import re
+                    fixed_json = re.sub(r',(\s*[}\]])', r'\1', fixed_json)
+                    
+                    # Fix missing commas between elements
+                    fixed_json = re.sub(r'"\s*\n\s*"', r'",\n"', fixed_json)
+                    fixed_json = re.sub(r'}\s*\n\s*{', r'},\n{', fixed_json)
+                    fixed_json = re.sub(r']\s*\n\s*\[', r'],\n[', fixed_json)
+                    
+                    # Fix missing quotes around keys
+                    fixed_json = re.sub(r'([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:', r'\1"\2":', fixed_json)
+                    
+                    # Try to parse the fixed JSON
+                    return json.loads(fixed_json)
+                except:
+                    print(f"❌ DEBUG Ollama: JSON repair failed, returning empty dict")
+                    return {}
+        return None
+
+    def get_raw_response(self, system_prompt: str, user_prompt: str) -> Optional[str]:
+        """Get raw text response when JSON parsing fails"""
+        if self.provider == "ollama":
+            try:
+                import requests
+                base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+                model = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+                payload = {
+                    "model": model,
+                    "prompt": f"{system_prompt}\n\n{user_prompt}",
+                    "stream": False,
+                }
+                r = requests.post(f"{base}/api/generate", json=payload, timeout=120)
+                r.raise_for_status()
+                data = r.json()
+                return data.get("response", "")
+            except Exception as e:
+                print(f"❌ Raw response failed: {e}")
                 return None
         return None
