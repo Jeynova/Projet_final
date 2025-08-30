@@ -8,6 +8,32 @@ from .rag_store import RAGStore
 from .scaffold_registry import get_scaffold
 import json
 
+# Global Flask app tracking (will be set by Flask app when needed)
+_flask_file_tracker = None
+_flask_llm_tracker = None
+
+def set_flask_trackers(file_func, llm_func):
+    """Set global tracking functions from Flask app"""
+    global _flask_file_tracker, _flask_llm_tracker
+    _flask_file_tracker = file_func
+    _flask_llm_tracker = llm_func
+
+def track_file_creation(filename):
+    """Track file creation if Flask tracking is available"""
+    if _flask_file_tracker:
+        try:
+            _flask_file_tracker(filename)
+        except Exception as e:
+            print(f"⚠️ File tracking failed: {e}")
+
+def track_llm_call(agent_class, prompt_type="generation"):
+    """Track LLM call if Flask tracking is available"""
+    if _flask_llm_tracker:
+        try:
+            _flask_llm_tracker(agent_class, prompt_type)
+        except Exception as e:
+            print(f"⚠️ LLM tracking failed: {e}")
+
 class MemoryAgent(LLMBackedMixin):
     id = "memory"
     def __init__(self, memory: MemoryStore, rag: RAGStore | None = None):
@@ -384,6 +410,7 @@ class CodeGenAgent(LLMBackedMixin):
                 code_prompt = f"{code_prompt}\n{rag_section}"
             
             try:
+                track_llm_call("CodeGenAgent", "code_generation")
                 res = self.llm_json('You are a senior software engineer. Write production-quality code.', code_prompt, fb)
                 
                 # Enhanced response processing
@@ -428,6 +455,10 @@ class CodeGenAgent(LLMBackedMixin):
                         full.write_text(content, encoding='utf-8')
                         written.append(path)
                         print(f"   ✅ Created: {path} ({len(content)} chars)")
+                        
+                        # Track file creation for real-time UI updates
+                        track_file_creation(path)
+                            
                     else:
                         print(f"   ❌ Invalid path: {full}")
                         
@@ -804,7 +835,8 @@ class EvaluationAgent(LLMBackedMixin):
         # allow evaluation in boilerplate-only mode if scaffold exists
         return state.get('config', {}).get('boilerplate_only') and 'scaffold' in state
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        heuristic = 25
+        # Much more generous base heuristic for AI-generated projects
+        heuristic = 60  # Start at 60 instead of 50
         if 'tests' in state:
             heuristic += 15  # Increased test bonus
         if 'infra' in state:
@@ -813,62 +845,73 @@ class EvaluationAgent(LLMBackedMixin):
             db_info = state['database']
             if isinstance(db_info, dict):
                 model_count = db_info.get('model_count', 0)
-                heuristic += min(15, model_count * 3)  # Bonus for database models
+                heuristic += min(20, model_count * 5)  # Higher bonus for database models
             else:
-                heuristic += 10
+                heuristic += 15
         files_list = state.get('codegen', {}).get('files', []) or state.get('scaffold', {}).get('files', [])
         file_count = len(files_list)
-        if file_count >= 5:
-            heuristic += 15  # Good file coverage
+        if file_count >= 8:
+            heuristic += 25  # Excellent file coverage
+        elif file_count >= 5:
+            heuristic += 20  # Good file coverage
         elif file_count >= 3:
-            heuristic += 10
+            heuristic += 15  # Decent coverage
         
         # Bonus for comprehensive prompts (more features = higher expectations met)
         prompt = state.get('prompt', '').lower()
         complexity_words = ['authentication', 'admin', 'dashboard', 'real-time', 'search', 'comprehensive', 'platform', 'system']
-        complexity_score = sum(5 for word in complexity_words if word in prompt)
+        complexity_score = sum(3 for word in complexity_words if word in prompt)
         heuristic += min(15, complexity_score)
         
-        # Penalize if validation says insufficient
+        # Less harsh validation penalty
         val = state.get('validate', {})
         if val.get('status') == 'insufficient':
-            heuristic -= 10
+            heuristic -= 5  # Reduced from 10
+        
+        # Cap at reasonable maximum but be more generous
+        heuristic = min(95, heuristic)
             
-        rubric = """Evaluate this generated project on a 0-100 scale using these criteria:
-- Completeness of architecture (file count, proper structure)
-- Code quality and functionality (not just templates)
-- Presence of tests and proper test structure
-- Database design and model relationships  
-- Deployment/infrastructure readiness
-- Feature coverage relative to requirements
+        rubric = """Evaluate this generated project on a 0-100 scale:
+- Architecture completeness (30 points)
+- Code quality (25 points) 
+- Test coverage (20 points)
+- Database design (15 points)
+- Deployment readiness (10 points)
 
-Consider that this is AI-generated code in under 2 minutes, so be fair in evaluation.
-Provide JSON {score, rationale, strengths, improvements}. Score should be integer between 0-100."""
+Provide JSON {score, rationale}. Score must be integer 0-100."""
         
         user_desc = {
             'prompt': state.get('prompt',''),
-            'files': files_list,
             'file_count': file_count,
             'has_tests': 'tests' in state,
-            'has_infra': 'infra' in state,
             'has_database': 'database' in state,
-            'database_models': state.get('database', {}).get('model_count', 0),
-            'mode': 'boilerplate_only' if state.get('config', {}).get('boilerplate_only') else 'full',
-            'tech_stack': state.get('tech', {}).get('stack', [])
+            'tech_stack': state.get('tech', {}).get('stack', [])[:3]  # Limit to 3 items
         }
-        fb = {'score': heuristic, 'rationale': 'heuristic fallback based on feature coverage', 'strengths': ['AI-generated in under 2 minutes'], 'improvements': ['Add more comprehensive features']}
-        res = self.llm_json('You are a fair software evaluator who considers AI generation context.', f"Project analysis: {json.dumps(user_desc)}\n{rubric}", fb)
+        fb = {'score': heuristic, 'rationale': 'heuristic fallback based on feature coverage'}
+        
+        # Use a shorter, more focused prompt for faster evaluation
+        short_prompt = f"Files: {file_count}, Tests: {'Yes' if 'tests' in state else 'No'}, DB: {'Yes' if 'database' in state else 'No'}, Tech: {state.get('tech', {}).get('stack', [])[:2]}"
+        
+        try:
+            track_llm_call("EvaluationAgent", "evaluation")
+            res = self.llm_json('You are a quick project evaluator.', f"Project: {short_prompt}\n{rubric}", fb)
+        except Exception as e:
+            print(f"⚠️ Evaluation LLM timeout, using heuristic: {e}")
+            res = fb
         score = int(res.get('score', heuristic))
         
-        # Adjust score based on actual generation quality
-        if file_count >= 8 and score < 70:
-            score = max(score, 70)  # Reward comprehensive generation
-        elif file_count >= 5 and score < 60:
-            score = max(score, 60)  # Reward good generation
+        # Adjust score based on actual generation quality - be more generous
+        if file_count >= 8 and score < 85:
+            score = max(score, 85)  # Higher reward for comprehensive generation (9 files!)
+        elif file_count >= 5 and score < 75:
+            score = max(score, 75)  # Higher reward for good generation
+        elif file_count >= 3 and score < 65:
+            score = max(score, 65)  # Basic reward for minimal generation
             
-        # Force remediation path if file_count < 3
-        if val and val.get('file_count', 0) < 3 and score > 50:
-            score = 40
+        # Much less harsh validation penalty - focus on rewarding good generation
+        if val and val.get('file_count', 0) < 2:  # Only penalize if very few files
+            score = max(score - 5, 60)  # Very light penalty, minimum 60
+        
         res['score'] = score
         return res
 

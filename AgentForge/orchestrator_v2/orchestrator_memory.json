@@ -579,26 +579,26 @@
   ],
   "agent_stats": {
     "memory": {
-      "invocations": 38,
-      "successes": 38,
+      "invocations": 45,
+      "successes": 45,
       "failures": 0,
       "score_bonus": -0.5584790025527885
     },
     "tech_select": {
-      "invocations": 86,
-      "successes": 86,
+      "invocations": 93,
+      "successes": 93,
       "failures": 0,
       "score_bonus": -0.26804665172971426
     },
     "architecture": {
-      "invocations": 36,
-      "successes": 36,
+      "invocations": 43,
+      "successes": 43,
       "failures": 0,
       "score_bonus": -0.15458424288422284
     },
     "codegen": {
-      "invocations": 93,
-      "successes": 29,
+      "invocations": 100,
+      "successes": 36,
       "failures": 64,
       "score_bonus": -0.20784021121227103
     },
@@ -609,14 +609,14 @@
       "score_bonus": -0.05714285714285715
     },
     "evaluate": {
-      "invocations": 30,
-      "successes": 30,
-      "failures": 0,
+      "invocations": 36,
+      "successes": 35,
+      "failures": 1,
       "score_bonus": -0.08318229274312436
     },
     "remediate": {
-      "invocations": 28,
-      "successes": 28,
+      "invocations": 32,
+      "successes": 32,
       "failures": 0,
       "score_bonus": -0.13444497173478465
     },
@@ -633,20 +633,20 @@
       "score_bonus": -0.95
     },
     "compose": {
-      "invocations": 10,
-      "successes": 10,
+      "invocations": 17,
+      "successes": 17,
       "failures": 0,
       "score_bonus": 0.03393181818181819
     },
     "package": {
-      "invocations": 26,
-      "successes": 26,
+      "invocations": 32,
+      "successes": 32,
       "failures": 0,
       "score_bonus": -0.06669570740573973
     },
     "deploy_select": {
-      "invocations": 28,
-      "successes": 28,
+      "invocations": 35,
+      "successes": 35,
       "failures": 0,
       "score_bonus": -0.12872422374799522
     },
@@ -657,14 +657,14 @@
       "score_bonus": -0.262250696969697
     },
     "validate": {
-      "invocations": 15,
-      "successes": 15,
+      "invocations": 21,
+      "successes": 21,
       "failures": 0,
       "score_bonus": -0.2206626500060454
     },
     "arch_validate": {
-      "invocations": 22,
-      "successes": 22,
+      "invocations": 29,
+      "successes": 29,
       "failures": 0,
       "score_bonus": -0.037027704180500026
     },
@@ -675,9 +675,9 @@
       "score_bonus": 0.0262
     },
     "database": {
-      "invocations": 5,
+      "invocations": 19,
       "successes": 5,
-      "failures": 0
+      "failures": 14
     }
   },
   "decisions": [

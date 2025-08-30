@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Project - AgentForge v2</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .agent-node {
+            transition: all 0.3s ease;
+            transform: scale(1);
+        }
+        .agent-node.running {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            animation: pulse 2s infinite;
+        }
+        .agent-node.completed {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        .agent-node.waiting {
+            opacity: 0.5;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .progress-line {
+            height: 2px;
+            background: #e5e7eb;
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-line.active::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            width: 100%;
+            animation: progress 1.5s ease-in-out infinite;
+        }
+        @keyframes progress {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .score-circle {
+            background: conic-gradient(from 0deg, #ef4444 0deg, #f59e0b 36deg, #10b981 72deg, #10b981 360deg);
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .score-circle::after {
+            content: '';
+            position: absolute;
+            inset: 8px;
+            background: white;
+            border-radius: 50%;
+        }
+        .score-text {
+            position: relative;
+            z-index: 10;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="flex items-center space-x-2">
+                        <i class="fas fa-robot text-2xl text-blue-600"></i>
+                        <h1 class="text-2xl font-bold text-gray-900">AgentForge</h1>
+                    </a>
+                </div>
+                <nav class="flex space-x-4">
+                    <a href="/" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md">Dashboard</a>
+                    <a href="/create" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">Create Project</a>
+                    <a href="/monitor" class="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md">Monitor</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Project Creation Form -->
+        <div id="creation-form" class="bg-white rounded-lg shadow p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">Create New Project</h2>
+            
+            <form id="project-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Project Description</label>
+                    <textarea id="prompt" rows="3" 
+                              class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Describe your project... e.g., 'Create a blog platform with user authentication, posts, and comments'"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Orchestrator Version</label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center">
+                            <input type="radio" name="orchestrator" value="v1" class="mr-2">
+                            <span class="text-sm">v1 (Original)</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="orchestrator" value="v2" checked class="mr-2">
+                            <span class="text-sm">v2 (Enhanced AI)</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="submit" 
+                        class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                        id="create-btn">
+                    <i class="fas fa-rocket mr-2"></i>Generate Project
+                </button>
+            </form>
+        </div>
+
+        <!-- Real-time Monitoring Panel -->
+        <div id="monitoring-panel" class="hidden">
+            <!-- Session Info -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">🤖 AI Orchestration in Progress</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-2"></div>
+                            <span class="text-sm text-gray-600">Live</span>
+                        </div>
+                        <span id="execution-time" class="text-sm text-gray-500">0s</span>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-gray-600 mb-1">Prompt:</p>
+                    <p id="current-prompt" class="font-medium"></p>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p class="text-2xl font-bold text-blue-600" id="agents-run">0</p>
+                        <p class="text-xs text-gray-600">Agents Executed</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-green-600" id="files-generated">0</p>
+                        <p class="text-xs text-gray-600">Files Generated</p>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-purple-600" id="llm-calls-live">0</p>
+                        <p class="text-xs text-gray-600">LLM Calls</p>
+                    </div>
+                </div>
+                
+                <!-- Files List -->
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mt-4">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">📁 Generated Files</h4>
+                    <div id="files-list" class="text-sm text-gray-600 max-h-32 overflow-y-auto">
+                        <div class="text-gray-500 italic">No files generated yet...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agent Pipeline Visualization -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">🔄 Agent Execution Pipeline</h3>
+                    <button id="collapse-pipeline-btn" onclick="togglePipeline()" class="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded">
+                        <i class="fas fa-chevron-up" id="collapse-icon"></i> Collapse
+                    </button>
+                </div>
+                <div id="agent-pipeline" class="space-y-3">
+                    <!-- Agents will be dynamically added here -->
+                </div>
+            </div>
+
+            <!-- Results Panel -->
+            <div id="results-panel" class="hidden bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">🎯 Final Results</h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Quality Score -->
+                    <div class="text-center">
+                        <div class="score-circle mx-auto mb-4">
+                            <div class="score-text" id="final-score">0</div>
+                        </div>
+                        <p class="text-sm text-gray-600">Quality Score</p>
+                    </div>
+                    
+                    <!-- Project Info -->
+                    <div class="space-y-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Tech Stack</p>
+                            <div id="tech-stack" class="flex flex-wrap gap-2 mt-1">
+                                <!-- Tech badges will be added here -->
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Architecture Pattern</p>
+                            <p id="architecture-pattern" class="text-sm text-gray-600"></p>
+                        </div>
+                        
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">Files Generated</p>
+                            <div id="generated-files" class="text-sm text-gray-600 max-h-32 overflow-y-auto">
+                                <!-- File list will be added here -->
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-3">
+                            <button id="download-btn" class="flex-1 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 opacity-50" disabled>
+                                <i class="fas fa-download mr-2"></i>Download Project
+                            </button>
+                            <button onclick="location.reload()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                                <i class="fas fa-plus mr-2"></i>New Project
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const socket = io();
+        let executionStartTime = null;
+        let agentsExecuted = 0;
+        let llmCalls = 0;
+        let filesGenerated = 0;
+
+        // Form submission
+        document.getElementById('project-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const prompt = document.getElementById('prompt').value.trim();
+            const orchestrator = document.querySelector('input[name="orchestrator"]:checked').value;
+            const projectName = `test-${orchestrator}-${Math.floor(Date.now() / 1000)}`;  // Generate unique project name
+            
+            if (!prompt) {
+                alert('Please enter a project description');
+                return;
+            }
+            
+            // Hide form, show monitoring
+            document.getElementById('creation-form').classList.add('hidden');
+            document.getElementById('monitoring-panel').classList.remove('hidden');
+            
+            // Set prompt
+            document.getElementById('current-prompt').textContent = prompt;
+            executionStartTime = Date.now();
+            
+            // Reset counters
+            agentsExecuted = 0;
+            llmCalls = 0;
+            filesGenerated = 0;
+            updateCounters();
+            
+            // Start orchestration
+            try {
+                const response = await fetch('/api/orchestrate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({prompt, orchestrator, name: projectName})
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to start orchestration');
+                }
+                
+                const data = await response.json();
+                console.log('Orchestration started:', data.session_id);
+                
+                // Start download fallback timer
+                enableDownloadFallback(projectName);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to start project generation');
+            }
+        });
+
+        // Socket event handlers
+        socket.on('session_start', function(data) {
+            console.log('🚀 Session started:', data);
+            // Reset counters
+            agentsExecuted = 0;
+            filesGenerated = 0; 
+            llmCalls = 0;
+            updateCounters();
+            
+            // Reset UI state
+            const pipeline = document.getElementById('agent-pipeline');
+            pipeline.innerHTML = '';
+            
+            const filesList = document.getElementById('files-list');
+            filesList.innerHTML = '<div class="text-gray-500 italic">No files generated yet...</div>';
+            
+            const downloadBtn = document.getElementById('download-btn');
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('opacity-50');
+            
+            document.getElementById('results-panel').classList.add('hidden');
+        });
+
+        socket.on('agent_start', function(data) {
+            console.log('🤖 Agent Start:', data);
+            
+            // Check if agent already exists to prevent duplicates
+            const existingAgent = document.getElementById(`agent-${data.id}`);
+            if (!existingAgent) {
+                agentsExecuted++;
+                updateCounters();
+                
+                // Add agent to pipeline visualization
+                addAgentToPipeline(data);
+            } else {
+                console.log('Agent already exists, skipping duplicate:', data.id);
+            }
+        });
+
+        socket.on('agent_complete', function(data) {
+            console.log('✅ Agent Complete:', data);
+            updateAgentStatus(data.id, 'completed', data.duration, data.result);
+            
+            // Count LLM calls and files based on agent type and result
+            if (data.class && (data.class.includes('CodeGen') || data.class.includes('Architecture') || data.class.includes('Evaluation'))) {
+                llmCalls++;
+            }
+            
+            if (data.result) {
+                // Count files generated
+                const fileKeywords = ['Created:', 'Generated', 'Files:', 'files generated', 'File created'];
+                if (fileKeywords.some(keyword => data.result.includes(keyword))) {
+                    filesGenerated += Math.max(1, (data.result.match(/\d+/g) || [1]).map(Number)[0]);
+                }
+                
+                // Count LLM responses
+                if (data.result.includes('LLM') || data.result.includes('Score:') || data.result.includes('response')) {
+                    llmCalls++;
+                }
+            }
+            
+            updateCounters();
+        });
+
+        socket.on('session_complete', function(data) {
+            console.log('🏁 Session completed:', data);
+            console.log('📊 Results object:', data.results);
+            console.log('🎯 Quality score found:', data.results?.quality_score);
+            console.log('📁 Project name for download:', data.results?.project_name);
+            showResults(data);
+        });
+
+        // Fallback: If session doesn't complete properly, enable download after reasonable time
+        let downloadFallbackTimer = null;
+        
+        function enableDownloadFallback(projectName) {
+            console.log('🔄 Setting download fallback for:', projectName);
+            downloadFallbackTimer = setTimeout(() => {
+                const downloadBtn = document.getElementById('download-btn');
+                if (downloadBtn.disabled && projectName) {
+                    console.log('⏰ Enabling download fallback for:', projectName);
+                    downloadBtn.onclick = () => {
+                        window.location.href = `/project/${projectName}/download`;
+                    };
+                    downloadBtn.disabled = false;
+                    downloadBtn.classList.remove('opacity-50');
+                    downloadBtn.classList.add('hover:bg-green-700');
+                }
+            }, 5000); // Wait 5 seconds after last agent completes
+        }
+
+        socket.on('file_created', function(data) {
+            console.log('📄 File Created:', data);
+            addFileToList(data.filename);
+            filesGenerated++;
+            updateCounters();
+        });
+
+        socket.on('llm_call', function(data) {
+            console.log('🧠 LLM Call:', data);
+            llmCalls++;
+            updateCounters();
+        });
+
+        socket.on('orchestration_output', function(data) {
+            // Parse output for file generation
+            if (data.line.includes('Created:') || data.line.includes('Generated')) {
+                filesGenerated++;
+                updateCounters();
+            }
+            if (data.line.includes('LLM response:')) {
+                llmCalls++;
+                updateCounters();
+            }
+        });
+
+        socket.on('orchestration_error', function(data) {
+            console.error('Orchestration error:', data);
+            // Show error in UI
+            const progressContainer = document.getElementById('progress-container');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'agent-card error-card';
+            errorDiv.innerHTML = `
+                <div class="agent-header">
+                    <h3>❌ Orchestration Error</h3>
+                    <span class="agent-status error">ERROR</span>
+                </div>
+                <div class="agent-body">
+                    <p><strong>Error:</strong> ${data.error}</p>
+                    <p>Please check the console for more details.</p>
+                </div>
+            `;
+            progressContainer.appendChild(errorDiv);
+            
+            // Hide loading indicator
+            document.getElementById('loading-indicator').style.display = 'none';
+        });
+
+        function updateCounters() {
+            document.getElementById('agents-run').textContent = agentsExecuted;
+            document.getElementById('files-generated').textContent = filesGenerated;
+            document.getElementById('llm-calls-live').textContent = llmCalls;
+            
+            if (executionStartTime) {
+                const elapsed = Math.floor((Date.now() - executionStartTime) / 1000);
+                document.getElementById('execution-time').textContent = elapsed + 's';
+            }
+        }
+
+        function addFileToList(filename) {
+            const filesList = document.getElementById('files-list');
+            
+            // Remove "no files" message if it exists
+            if (filesList.querySelector('.text-gray-500.italic')) {
+                filesList.innerHTML = '';
+            }
+            
+            const fileItem = document.createElement('div');
+            fileItem.className = 'flex items-center space-x-2 py-1 border-b border-gray-200 last:border-b-0';
+            fileItem.innerHTML = `
+                <i class="fas fa-file-code text-blue-500 text-xs"></i>
+                <span class="truncate">${filename}</span>
+            `;
+            
+            filesList.appendChild(fileItem);
+        }
+
+        function addAgentToPipeline(agent) {
+            const pipeline = document.getElementById('agent-pipeline');
+            
+            const agentCard = document.createElement('div');
+            agentCard.id = `agent-${agent.id}`;
+            agentCard.className = 'agent-node running bg-blue-50 border border-blue-200 rounded-lg p-4';
+            
+            agentCard.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium text-gray-900">${agent.class}</p>
+                            <p class="text-xs text-gray-500">Score: ${agent.score.toFixed(3)} (beat ${agent.competitors} others)</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <div class="w-4 h-4 bg-blue-500 rounded-full animate-spin"></div>
+                        <span class="text-sm text-blue-600">Running...</span>
+                    </div>
+                </div>
+                <div class="progress-line active mt-3"></div>
+            `;
+            
+            pipeline.appendChild(agentCard);
+        }
+
+        function updateAgentStatus(agentId, status, duration, result) {
+            const agentCard = document.getElementById(`agent-${agentId}`);
+            if (!agentCard) return;
+            
+            agentCard.className = `agent-node ${status} border rounded-lg p-4`;
+            
+            if (status === 'completed') {
+                agentCard.className += ' bg-green-50 border-green-200';
+                
+                const statusDiv = agentCard.querySelector('.flex.items-center.space-x-2');
+                statusDiv.innerHTML = `
+                    <div class="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check text-white text-xs"></i>
+                    </div>
+                    <span class="text-sm text-green-600">${duration.toFixed(2)}s</span>
+                `;
+                
+                // Add result summary
+                const resultDiv = document.createElement('div');
+                resultDiv.className = 'mt-2 text-xs text-gray-600';
+                resultDiv.textContent = result.substring(0, 100) + (result.length > 100 ? '...' : '');
+                agentCard.appendChild(resultDiv);
+            }
+            
+            // Remove progress line
+            const progressLine = agentCard.querySelector('.progress-line');
+            if (progressLine) {
+                progressLine.classList.remove('active');
+            }
+        }
+
+        function showResults(data) {
+            document.getElementById('results-panel').classList.remove('hidden');
+            
+            console.log('📊 Showing results:', data);
+            
+            if (data.results) {
+                // Update final score
+                const score = data.results.quality_score || data.results.score || 0;
+                document.getElementById('final-score').textContent = score;
+                
+                // Update tech stack
+                const techStack = document.getElementById('tech-stack');
+                if (data.results.tech_stack) {
+                    const techs = Array.isArray(data.results.tech_stack) ? data.results.tech_stack : [data.results.tech_stack];
+                    techStack.innerHTML = techs.map(tech => 
+                        `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${tech}</span>`
+                    ).join('');
+                }
+                
+                // Update architecture
+                document.getElementById('architecture-pattern').textContent = data.results.architecture || 'N/A';
+                
+                // Update files
+                const filesDiv = document.getElementById('generated-files');
+                if (data.results.files) {
+                    filesDiv.innerHTML = data.results.files.map(file => 
+                        `<div class="py-1"><i class="fas fa-file-code mr-1"></i>${file}</div>`
+                    ).join('');
+                }
+                
+                // Always enable download button if we have project results
+                const downloadBtn = document.getElementById('download-btn');
+                if (data.results.project_name) {
+                    console.log('🔽 Enabling download for project:', data.results.project_name);
+                    downloadBtn.onclick = () => {
+                        const downloadUrl = `/project/${data.results.project_name}/download`;
+                        console.log('⬇️ Downloading from:', downloadUrl);
+                        window.location.href = downloadUrl;
+                    };
+                    downloadBtn.disabled = false;
+                    downloadBtn.classList.remove('opacity-50');
+                    downloadBtn.classList.add('hover:bg-green-700');
+                } else {
+                    console.log('⚠️ No project name found for download');
+                }
+            }
+        }
+
+        // Update execution timer
+        setInterval(() => {
+            if (executionStartTime && !document.getElementById('results-panel').classList.contains('hidden') === false) {
+                updateCounters();
+            }
+        }, 1000);
+
+        // Toggle pipeline visibility
+        function togglePipeline() {
+            const pipeline = document.getElementById('agent-pipeline');
+            const icon = document.getElementById('collapse-icon');
+            const btn = document.getElementById('collapse-pipeline-btn');
+            
+            if (pipeline.style.display === 'none') {
+                pipeline.style.display = 'block';
+                icon.className = 'fas fa-chevron-up';
+                btn.innerHTML = '<i class="fas fa-chevron-up" id="collapse-icon"></i> Collapse';
+            } else {
+                pipeline.style.display = 'none';
+                icon.className = 'fas fa-chevron-down';
+                btn.innerHTML = '<i class="fas fa-chevron-down" id="collapse-icon"></i> Expand';
+            }
+        }
+    </script>
+</body>
+</html>
