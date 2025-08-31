@@ -21,7 +21,7 @@ from .agent_base import AgentResult
 from .agents_impl import (
     MemoryAgent, ClarifyAgent, TechSelectAgent, ArchitectureAgent, ArchitectureValidationAgent, ArchitectureExpandAgent, ScaffoldAgent, CodeGenAgent,
     DatabaseAgent, DeploymentSelectAgent, InfraAgent, DockerComposeAgent, KubeAgent,
-    TestAgent, IngestAgent, EvaluationAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
+    TestAgent, IngestAgent, EvaluationAgent, KnowledgeStoreAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
 )
 from .rag_store import RAGStore
 
@@ -126,6 +126,7 @@ class LoggedDynamicOrchestrator:
             QuickstartAgent(project_root),
             IngestAgent(project_root, self.rag),
             EvaluationAgent(),
+            KnowledgeStoreAgent(project_root, self.rag),  # Store successful patterns in RAG!
             RemediationAgent(project_root),
             PackageAgent(project_root),
         ]

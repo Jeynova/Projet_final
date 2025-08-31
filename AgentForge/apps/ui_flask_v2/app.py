@@ -335,13 +335,33 @@ def orchestrate():
                 
                 # Complete monitoring session
                 quality_score = 0
+                architecture_pattern = "N/A"
+                tech_stack = []
+                
                 if orchestrator_type == 'v2':
                     # For V2, look for evaluation results in state
                     evaluation_result = final.get('evaluate', {})
                     quality_score = evaluation_result.get('score', 0)
+                    
+                    # Extract architecture pattern from V2 orchestrator
+                    architecture_result = final.get('architecture', {})
+                    architecture_pattern = architecture_result.get('pattern', 'N/A')
+                    
+                    # Extract tech stack from V2 orchestrator
+                    tech_result = final.get('tech', {})
+                    tech_stack_raw = tech_result.get('stack', [])
+                    
+                    # Normalize tech stack for display
+                    for item in tech_stack_raw:
+                        if isinstance(item, dict) and 'name' in item:
+                            tech_stack.append(item['name'])
+                        elif isinstance(item, str):
+                            tech_stack.append(item)
                 else:
                     # For V1, check different possible locations
                     quality_score = final.get('quality_score', final.get('score', 0))
+                    architecture_pattern = final.get('architecture_pattern', 'N/A')
+                    tech_stack = final.get('tech_stack', [])
                 
                 # Create safe results dict without datetime objects
                 def make_json_safe(obj):
@@ -365,7 +385,9 @@ def orchestrate():
                     'status': final.get("status", "completed"),
                     'logs': safe_logs,
                     'quality_score': quality_score,
-                    'files_generated': len(list(project_dir.rglob('*'))) if project_dir.exists() else 0
+                    'files_generated': len(list(project_dir.rglob('*'))) if project_dir.exists() else 0,
+                    'architecture': architecture_pattern,
+                    'tech_stack': tech_stack
                 }
                 print(f"📋 Session completion data: project_name={name}, quality_score={quality_score}, zip_path exists={Path(str(zip_path)).exists()}")
                 monitor.session_complete(results)

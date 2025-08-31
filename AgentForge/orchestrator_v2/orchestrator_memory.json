@@ -575,32 +575,499 @@
       ],
       "score": 60,
       "time": 1756464432.5723643
+    },
+    {
+      "prompt": "Create a simple ecommerce API with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 75,
+      "time": 1756644167.1044433
+    },
+    {
+      "prompt": "Create a simple ecommerce API with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 75,
+      "time": 1756644186.0109208
+    },
+    {
+      "prompt": "Create a simple ecommerce API with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 75,
+      "time": 1756644206.7797801
+    },
+    {
+      "prompt": "Create a simple ecommerce API with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 75,
+      "time": 1756644237.4611661
+    },
+    {
+      "prompt": "Create an ecommerce platform with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 78,
+      "time": 1756644273.399294
+    },
+    {
+      "prompt": "Build an online store API with FastAPI",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 75,
+      "time": 1756644273.4744704
+    },
+    {
+      "prompt": "Create a FastAPI ecommerce API with products, users, and cart functionality",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py",
+        "app/models/user.py",
+        "app/routes/users.py"
+      ],
+      "score": 80,
+      "time": 1756644870.140839
+    },
+    {
+      "prompt": "Create a comprehensive FastAPI ecommerce platform with user authentication and product catalog",
+      "tech_stack": [],
+      "artifacts": [
+        "main.py",
+        "config/settings.py",
+        "app/models.py",
+        "app/routes.py",
+        "app/schemas.py",
+        "tests/conftest.py",
+        "tests/test_main.py",
+        "tests/test_routes.py",
+        "app/main.py"
+      ],
+      "score": 80,
+      "time": 1756645071.4169147
+    },
+    {
+      "prompt": "Create a blog platform with user authentication and comments",
+      "tech_stack": [
+        {
+          "name": "fastapi",
+          "reasoning": "For building the API, we will use FastAPI due to its high performance, concurrency support and automatic interactive documentation.",
+          "confidence": 0.9
+        },
+        {
+          "name": "pydantic",
+          "reasoning": "We will use Pydantic for data validation and modeling since it's designed specifically for Python and integrates well with FastAPI.",
+          "confidence": 0.8
+        },
+        {
+          "name": "sqlalchemy",
+          "reasoning": "For database interactions, we'll choose SQLAlchemy due to its support for ORM (Object-Relational Mapping), allowing for more complex queries and relationships.",
+          "confidence": 0.85
+        },
+        {
+          "name": "jwtauth",
+          "reasoning": "We will use JWTAuth for user authentication as it's a widely adopted standard, simple to implement and provides token-based authentication.",
+          "confidence": 0.9
+        },
+        {
+          "name": "uvicorn",
+          "reasoning": "For the ASGI web server, we'll select Uvicorn due to its high performance, reliability and support for async/await syntax.",
+          "confidence": 0.95
+        }
+      ],
+      "artifacts": [
+        "main.py",
+        "app/config.py",
+        "app/models.py",
+        "app/db.py",
+        "app/auth.py",
+        "app/routers/user.py",
+        "app/routers/blog.py",
+        "app/routers/comments.py",
+        "tests/test_main.py",
+        "tests/test_auth.py",
+        "tests/test_blog.py",
+        "app/main.py",
+        "app/routes/health.py",
+        "app/models/user.py",
+        "app/routes/users.py"
+      ],
+      "score": 84,
+      "time": 1756647202.6484303
+    },
+    {
+      "prompt": "Build a task management system for teams",
+      "tech_stack": [
+        {
+          "name": "fastapi",
+          "reasoning": "For building the API, we will use FastAPI due to its high performance, concurrency support and automatic interactive documentation.",
+          "confidence": 0.9
+        },
+        {
+          "name": "pydantic",
+          "reasoning": "We will use Pydantic for data validation and modeling since it's designed specifically for Python and integrates well with FastAPI.",
+          "confidence": 0.8
+        },
+        {
+          "name": "sqlalchemy",
+          "reasoning": "For database interactions, we'll choose SQLAlchemy due to its support for ORM (Object-Relational Mapping), allowing for more complex queries and relationships.",
+          "confidence": 0.85
+        },
+        {
+          "name": "jwtauth",
+          "reasoning": "We will use JWTAuth for user authentication as it's a widely adopted standard, simple to implement and provides token-based authentication.",
+          "confidence": 0.9
+        },
+        {
+          "name": "uvicorn",
+          "reasoning": "For the ASGI web server, we'll select Uvicorn due to its high performance, reliability and support for async/await syntax.",
+          "confidence": 0.95
+        }
+      ],
+      "artifacts": [
+        "main.py",
+        "app/config.py",
+        "app/db/models.py",
+        "app/db/session.py",
+        "app/auth/jwt_auth.py",
+        "app/services/task_service.py",
+        "app/routes/task_routes.py",
+        "app/middleware/cors_middleware.py",
+        "tests/conftest.py",
+        "tests/test_task_routes.py",
+        "app/main.py",
+        "app/routes/health.py",
+        "app/models/task.py",
+        "app/routes/tasks.py"
+      ],
+      "score": 85,
+      "time": 1756647319.094996
+    },
+    {
+      "prompt": "Create a blog platform",
+      "tech_stack": [
+        {
+          "name": "fastapi",
+          "reasoning": "For building the API, we will use FastAPI due to its high performance, concurrency support and automatic interactive documentation.",
+          "confidence": 0.9
+        },
+        {
+          "name": "pydantic",
+          "reasoning": "We will use Pydantic for data validation and modeling since it's designed specifically for Python and integrates well with FastAPI.",
+          "confidence": 0.8
+        },
+        {
+          "name": "sqlalchemy",
+          "reasoning": "For database interactions, we'll choose SQLAlchemy due to its support for ORM (Object-Relational Mapping), allowing for more complex queries and relationships.",
+          "confidence": 0.85
+        },
+        {
+          "name": "jwtauth",
+          "reasoning": "We will use JWTAuth for user authentication as it's a widely adopted standard, simple to implement and provides token-based authentication.",
+          "confidence": 0.9
+        },
+        {
+          "name": "uvicorn",
+          "reasoning": "For the ASGI web server, we'll select Uvicorn due to its high performance, reliability and support for async/await syntax.",
+          "confidence": 0.95
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 90,
+      "time": 1756647410.9668477
+    },
+    {
+      "prompt": "Create a blog platform with posts and comments",
+      "tech_stack": [],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py"
+      ],
+      "score": 82,
+      "time": 1756648192.1409943
+    },
+    {
+      "prompt": "Build a task management system for teams",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py",
+        "app/models/task.py",
+        "app/routes/tasks.py"
+      ],
+      "score": 90,
+      "time": 1756648192.271443
+    },
+    {
+      "prompt": "Create an e-commerce store with products and cart",
+      "tech_stack": [
+        {
+          "name": "python",
+          "origin": "llm"
+        },
+        {
+          "name": "fastapi",
+          "origin": "llm"
+        },
+        {
+          "name": "sqlite",
+          "origin": "llm"
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 77,
+      "time": 1756648192.3863277
+    },
+    {
+      "prompt": "Build a social media platform with posts and followers",
+      "tech_stack": [],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py"
+      ],
+      "score": 78,
+      "time": 1756648192.4940355
+    },
+    {
+      "prompt": "Create a learning management system with courses",
+      "tech_stack": [
+        {
+          "name": "fastapi",
+          "reasoning": "For building the API, we will use FastAPI due to its high performance, concurrency support and automatic interactive documentation.",
+          "confidence": 0.9
+        },
+        {
+          "name": "pydantic",
+          "reasoning": "We will use Pydantic for data validation and modeling since it's designed specifically for Python and integrates well with FastAPI.",
+          "confidence": 0.8
+        },
+        {
+          "name": "sqlalchemy",
+          "reasoning": "For database interactions, we'll choose SQLAlchemy due to its support for ORM (Object-Relational Mapping), allowing for more complex queries and relationships.",
+          "confidence": 0.85
+        },
+        {
+          "name": "jwtauth",
+          "reasoning": "We will use JWTAuth for user authentication as it's a widely adopted standard, simple to implement and provides token-based authentication.",
+          "confidence": 0.9
+        },
+        {
+          "name": "uvicorn",
+          "reasoning": "For the ASGI web server, we'll select Uvicorn due to its high performance, reliability and support for async/await syntax.",
+          "confidence": 0.95
+        }
+      ],
+      "artifacts": [
+        "app/main.py",
+        "app/models/__init__.py",
+        "app/routes/__init__.py",
+        "app/schemas.py",
+        "tests/__init__.py",
+        "app/routes/health.py"
+      ],
+      "score": 90,
+      "time": 1756648192.6109746
     }
   ],
   "agent_stats": {
     "memory": {
-      "invocations": 45,
-      "successes": 45,
+      "invocations": 64,
+      "successes": 64,
       "failures": 0,
-      "score_bonus": -0.5584790025527885
+      "score_bonus": 0.28068121911733523
     },
     "tech_select": {
-      "invocations": 93,
-      "successes": 93,
+      "invocations": 112,
+      "successes": 112,
       "failures": 0,
-      "score_bonus": -0.26804665172971426
+      "score_bonus": 0.334498920074421
     },
     "architecture": {
-      "invocations": 43,
-      "successes": 43,
+      "invocations": 62,
+      "successes": 62,
       "failures": 0,
-      "score_bonus": -0.15458424288422284
+      "score_bonus": 0.35552373350106675
     },
     "codegen": {
-      "invocations": 100,
-      "successes": 36,
+      "invocations": 119,
+      "successes": 55,
       "failures": 64,
-      "score_bonus": -0.20784021121227103
+      "score_bonus": 0.345655295052194
     },
     "tests": {
       "invocations": 1,
@@ -609,10 +1076,10 @@
       "score_bonus": -0.05714285714285715
     },
     "evaluate": {
-      "invocations": 36,
-      "successes": 35,
+      "invocations": 55,
+      "successes": 54,
       "failures": 1,
-      "score_bonus": -0.08318229274312436
+      "score_bonus": 0.3687546590145515
     },
     "remediate": {
       "invocations": 32,
@@ -633,22 +1100,22 @@
       "score_bonus": -0.95
     },
     "compose": {
-      "invocations": 17,
-      "successes": 17,
+      "invocations": 36,
+      "successes": 36,
       "failures": 0,
-      "score_bonus": 0.03393181818181819
+      "score_bonus": 0.39045614020888686
     },
     "package": {
-      "invocations": 32,
-      "successes": 32,
+      "invocations": 51,
+      "successes": 51,
       "failures": 0,
-      "score_bonus": -0.06669570740573973
+      "score_bonus": 0.3718096565620918
     },
     "deploy_select": {
-      "invocations": 35,
-      "successes": 35,
+      "invocations": 54,
+      "successes": 54,
       "failures": 0,
-      "score_bonus": -0.12872422374799522
+      "score_bonus": 0.3603156472554192
     },
     "scaffold": {
       "invocations": 6,
@@ -657,16 +1124,16 @@
       "score_bonus": -0.262250696969697
     },
     "validate": {
-      "invocations": 21,
-      "successes": 21,
+      "invocations": 40,
+      "successes": 40,
       "failures": 0,
-      "score_bonus": -0.2206626500060454
+      "score_bonus": 0.3432792712566759
     },
     "arch_validate": {
-      "invocations": 29,
-      "successes": 29,
+      "invocations": 48,
+      "successes": 48,
       "failures": 0,
-      "score_bonus": -0.037027704180500026
+      "score_bonus": 0.37730719745602087
     },
     "arch_expand": {
       "invocations": 12,
@@ -678,6 +1145,30 @@
       "invocations": 19,
       "successes": 5,
       "failures": 14
+    },
+    "manifest": {
+      "invocations": 16,
+      "successes": 16,
+      "failures": 0,
+      "score_bonus": 0.349726223821493
+    },
+    "quickstart": {
+      "invocations": 16,
+      "successes": 16,
+      "failures": 0,
+      "score_bonus": 0.349726223821493
+    },
+    "ingest": {
+      "invocations": 16,
+      "successes": 16,
+      "failures": 0,
+      "score_bonus": 0.349726223821493
+    },
+    "knowledge_store": {
+      "invocations": 16,
+      "successes": 16,
+      "failures": 0,
+      "score_bonus": 0.349726223821493
     }
   },
   "decisions": [

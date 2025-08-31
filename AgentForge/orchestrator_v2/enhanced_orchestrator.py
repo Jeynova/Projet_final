@@ -11,7 +11,7 @@ from .agent_base import AgentResult
 from .agents_impl import (
     MemoryAgent, ClarifyAgent, TechSelectAgent, ArchitectureAgent, ArchitectureValidationAgent, ArchitectureExpandAgent, ScaffoldAgent, CodeGenAgent,
     DatabaseAgent, DeploymentSelectAgent, InfraAgent, DockerComposeAgent, KubeAgent,
-    TestAgent, IngestAgent, EvaluationAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
+    TestAgent, IngestAgent, EvaluationAgent, KnowledgeStoreAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
 )
 from .rag_store import RAGStore
 
@@ -113,6 +113,7 @@ class EnhancedDynamicOrchestrator:
             QuickstartAgent(project_root),
             IngestAgent(project_root, self.rag),
             EvaluationAgent(),
+            KnowledgeStoreAgent(project_root, self.rag),  # Store successful patterns in RAG!
             RemediationAgent(project_root),
             PackageAgent(project_root),
         ]
@@ -181,9 +182,18 @@ class EnhancedDynamicOrchestrator:
                     break
                     
             # Allow remediation after evaluation if score low (<65)
+            # Also allow knowledge storage to run after successful evaluation
             if 'evaluate' in self.state:
-                if 'package' in self.state and (self.state.get('evaluate', {}).get('score', 0) >= 65 or 'remediate' in self.state):
-                    break
+                score = self.state.get('evaluate', {}).get('score', 0)
+                # Stop if package is done AND either score is good OR remediation is done AND knowledge is stored (if applicable)
+                if 'package' in self.state:
+                    if score >= 65:
+                        # Allow knowledge storage for high scores before stopping
+                        if score >= 70 and 'knowledge_store' not in self.state:
+                            continue  # Keep running to store knowledge
+                        break
+                    elif 'remediate' in self.state:
+                        break
                     
         # Persist run summary
         tech_stack = self.state.get('tech', {}).get('stack', [])

@@ -9,7 +9,7 @@ from .agent_base import AgentResult
 from .agents_impl import (
     MemoryAgent, ClarifyAgent, TechSelectAgent, ArchitectureAgent, ArchitectureValidationAgent, ArchitectureExpandAgent, ScaffoldAgent, CodeGenAgent,
     DatabaseAgent, DeploymentSelectAgent, InfraAgent, DockerComposeAgent, KubeAgent,
-    TestAgent, IngestAgent, EvaluationAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
+    TestAgent, IngestAgent, EvaluationAgent, KnowledgeStoreAgent, RemediationAgent, PackageAgent, QuickstartAgent, ValidateAgent, ManifestAgent
 )
 from .rag_store import RAGStore
 
@@ -41,6 +41,7 @@ class DynamicOrchestrator:
             QuickstartAgent(project_root),
             IngestAgent(project_root, self.rag),
             EvaluationAgent(),
+            KnowledgeStoreAgent(project_root, self.rag),  # Store successful patterns in RAG!
             RemediationAgent(project_root),
             PackageAgent(project_root),
         ]
@@ -50,7 +51,7 @@ class DynamicOrchestrator:
 
     def _score_agent(self, agent) -> float:
         base = self.memory.success_rate(agent.id)
-        stage_order = ['memory','clarify','tech_select','architecture','arch_validate','arch_expand','scaffold','codegen','manifest','validate','database','deploy_select','infra','compose','kube','tests','quickstart','ingest','evaluate','remediate','package']
+        stage_order = ['memory','clarify','tech_select','architecture','arch_validate','arch_expand','scaffold','codegen','manifest','validate','database','deploy_select','infra','compose','kube','tests','quickstart','ingest','evaluate','knowledge_store','remediate','package']
         if agent.id == 'clarify' and 'clarify' not in self.state:
             return base + 2.0
         if agent.id in stage_order:
