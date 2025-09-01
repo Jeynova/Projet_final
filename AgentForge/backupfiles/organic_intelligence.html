@@ -20,15 +20,14 @@
         .container {
             width: 95%;
             max-width: 1400px;
-            min-height: 90vh; /* Use min-height instead of fixed height */
-            max-height: 95vh; /* Limit max height to prevent overflow */
+            height: 90vh;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             display: grid;
             grid-template-columns: 1fr 320px;
             grid-template-rows: 80px 1fr;
-            overflow: hidden; /* Keep this for grid layout */
+            overflow: hidden;
         }
         
         .header {
@@ -77,8 +76,7 @@
             flex-direction: column;
             gap: 20px;
             height: 100%;
-            overflow-y: auto; /* Enable vertical scrolling */
-            overflow-x: hidden; /* Prevent horizontal scrolling */
+            overflow: hidden;
             grid-column: 1;
             grid-row: 2;
         }
@@ -89,8 +87,6 @@
             border-radius: 12px;
             border: 2px solid #e2e8f0;
             flex-shrink: 0;
-            max-height: 400px; /* Limit max height to prevent overwhelming the layout */
-            overflow-y: auto; /* Allow scrolling within the input section if needed */
         }
         
         .input-section h3 {
@@ -107,7 +103,6 @@
             font-size: 16px;
             resize: vertical;
             min-height: 100px;
-            max-height: 200px; /* Prevent the textarea from becoming too tall */
             font-family: inherit;
         }
         
@@ -240,19 +235,14 @@
             flex-direction: column;
             grid-column: 2;
             grid-row: 2;
-            overflow-y: auto; /* Enable vertical scrolling for the entire sidebar */
-            overflow-x: hidden; /* Prevent horizontal scrolling */
-            height: 100%; /* Ensure full height */
-            max-height: calc(95vh - 80px); /* Account for header height */
-            min-height: 500px; /* Minimum height to prevent crushing */
+            overflow: hidden;
         }
         
         .agent-log {
-            flex: 0 0 auto; /* Don't grow, don't shrink, auto basis */
+            flex: 1;
             padding: 20px;
             overflow-y: auto;
-            max-height: 350px; /* Limit agent log height to leave room for other sections */
-            min-height: 200px; /* Ensure minimum visible height */
+            min-height: 0;
         }
         
         .agent-log h3 {
@@ -333,8 +323,7 @@
         
         /* NEW: Team Debate Visualization */
         .debate-section {
-            flex: 0 0 auto; /* Don't grow/shrink automatically */
-            max-height: 300px; /* Limit debate section height */
+            flex: 0 0 250px;
             padding: 15px;
             background: #f0fff4;
             border-top: 1px solid #c6f6d5;
@@ -348,7 +337,7 @@
         }
         
         .debate-container {
-            height: 180px; /* Reduced height to fit better */
+            height: 200px;
             overflow-y: auto;
             background: white;
             border-radius: 6px;
@@ -372,8 +361,7 @@
         
         /* NEW: Agent Decision Tracking */
         .decisions-section {
-            flex: 0 0 auto; /* Don't grow/shrink automatically */
-            max-height: 250px; /* Limit decisions section height */
+            flex: 0 0 200px;
             padding: 15px;
             background: #fff5f5;
             border-top: 1px solid #fed7d7;
@@ -387,7 +375,7 @@
         }
         
         .decisions-container {
-            height: 140px; /* Reduced height to fit better */
+            height: 160px;
             overflow-y: auto;
             background: white;
             border-radius: 6px;
@@ -494,47 +482,27 @@
         /* 📜 Better scrollbar styling */
         .current-agent::-webkit-scrollbar,
         .agent-log::-webkit-scrollbar,
-        .team-discussion::-webkit-scrollbar,
-        .main-area::-webkit-scrollbar,
-        .input-section::-webkit-scrollbar,
-        .sidebar::-webkit-scrollbar,
-        .debate-container::-webkit-scrollbar,
-        .decisions-container::-webkit-scrollbar {
+        .team-discussion::-webkit-scrollbar {
             width: 8px;
         }
         
         .current-agent::-webkit-scrollbar-track,
         .agent-log::-webkit-scrollbar-track,
-        .team-discussion::-webkit-scrollbar-track,
-        .main-area::-webkit-scrollbar-track,
-        .input-section::-webkit-scrollbar-track,
-        .sidebar::-webkit-scrollbar-track,
-        .debate-container::-webkit-scrollbar-track,
-        .decisions-container::-webkit-scrollbar-track {
+        .team-discussion::-webkit-scrollbar-track {
             background: #f1f5f9;
             border-radius: 4px;
         }
         
         .current-agent::-webkit-scrollbar-thumb,
         .agent-log::-webkit-scrollbar-thumb,
-        .team-discussion::-webkit-scrollbar-thumb,
-        .main-area::-webkit-scrollbar-thumb,
-        .input-section::-webkit-scrollbar-thumb,
-        .sidebar::-webkit-scrollbar-thumb,
-        .debate-container::-webkit-scrollbar-thumb,
-        .decisions-container::-webkit-scrollbar-thumb {
+        .team-discussion::-webkit-scrollbar-thumb {
             background: #cbd5e0;
             border-radius: 4px;
         }
         
         .current-agent::-webkit-scrollbar-thumb:hover,
         .agent-log::-webkit-scrollbar-thumb:hover,
-        .team-discussion::-webkit-scrollbar-thumb:hover,
-        .main-area::-webkit-scrollbar-thumb:hover,
-        .input-section::-webkit-scrollbar-thumb:hover,
-        .sidebar::-webkit-scrollbar-thumb:hover,
-        .debate-container::-webkit-scrollbar-thumb:hover,
-        .decisions-container::-webkit-scrollbar-thumb:hover {
+        .team-discussion::-webkit-scrollbar-thumb:hover {
             background: #a0aec0;
         }
         

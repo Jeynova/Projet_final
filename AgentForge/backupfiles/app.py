@@ -392,7 +392,7 @@ class UIAwareOrchestrator:
             return
         def emit_to_session(event, payload):
             payload = {**payload, 'session_id': session_id}
-            socketio.emit(event, payload)
+            socketio.emit(event, payload)  # optionally `to=session_id` if you join a room
         # --- telemetry hooks:
         def on_start(name, state):
             # reuse your existing monitor hooks
@@ -401,20 +401,23 @@ class UIAwareOrchestrator:
             monitor.llm_call_made(name, f"Running {name}")
 
         def on_complete(name, state, result):
+    # message court pour le log
             msg = f"{name} completed"
 
             if name == 'MultiPerspectiveTechAgent':
                 msg = f"🎭 Team selected {len(state.get('tech_stack', []))} technologies"
 
+                # → utilise le helper pour inclure session_id automatiquement
                 emit_to_session('tech_stack_decided', {
                     'tech_stack': state.get('tech_stack', [])
                 })
 
+                # Débat parallèle : on émet les événements dédiés
                 team_decision = state.get('team_decision_process', {})
                 if team_decision.get('parallel_debate_results'):
                     emit_to_session('team_debate_started', {})
 
-                    # IMPORTANT: send 'proposal' (not 'response')
+                    # ⚠️ ICI: on envoie bien 'proposal' (pas 'response')
                     for role_result in team_decision['parallel_debate_results']:
                         emit_to_session('team_role_response', {
                             'role': role_result.get('role', 'Unknown'),
@@ -449,13 +452,14 @@ class UIAwareOrchestrator:
                 elif result.get('goal_reached'):
                     emit_to_session('quality_goal_reached', {
                         'score': state.get('validation', {}).get('score', 0),
-                        'threshold': state.get('validation_threshold', 7),  # demo-friendly fallback
+                        'threshold': state.get('validation_threshold', 8),
                         'iterations': state.get('codegen_iters', 0)
                     })
 
             elif name == 'EvaluationAgent':
                 msg = f"📊 Score: {state.get('evaluation',{}).get('overall_score','N/A')}/10"
 
+            # log UI existant
             monitor.agent_completed(name, msg, 0.0)
 
         def on_error(name, e):
@@ -469,29 +473,24 @@ class UIAwareOrchestrator:
         router = ValidationRouter()
         agents['ValidationRouter'] = router
 
-        # Defaults & thresholds in state (optimized for demos)
+        # Defaults & thresholds in state
         state = {
             'prompt': prompt,
-            'max_codegen_iters': 4,         # number of refinement loops allowed (demo-friendly)
-            'validation_threshold': 7,      # required quality (demo-friendly)
+            'max_codegen_iters': 3,         # number of refinement loops allowed
+            'validation_threshold': 8,      # required quality
         }
 
         nodes = {
+            # learning memory d'abord
             'LearningMemoryAgent': Node('LearningMemoryAgent',
                 run=agents['LearningMemoryAgent'].run,
                 can_run=agents['LearningMemoryAgent'].can_run),
 
+            # débat (peut paralléliser en interne)
             'MultiPerspectiveTechAgent': Node('MultiPerspectiveTechAgent',
                 run=agents['MultiPerspectiveTechAgent'].run,
                 can_run=agents['MultiPerspectiveTechAgent'].can_run,
                 parallel_group="debate"),
-            'CapabilityAgent': Node('CapabilityAgent',
-                run=agents['CapabilityAgent'].run,
-                can_run=agents['CapabilityAgent'].can_run),
-
-            'ContractAgent': Node('ContractAgent',
-                run=agents['ContractAgent'].run,
-                can_run=agents['ContractAgent'].can_run),
 
             'ArchitectureAgent': Node('ArchitectureAgent',
                 run=agents['ArchitectureAgent'].run,
@@ -501,7 +500,7 @@ class UIAwareOrchestrator:
                 run=agents['DatabaseAgent'].run,
                 can_run=agents['DatabaseAgent'].can_run),
 
-            # 🔁 refinement loop nodes
+            # 🔁 boucle de raffinement : ces 3 nœuds doivent être repeatable
             'CodeGenAgent': Node('CodeGenAgent',
                 run=agents['CodeGenAgent'].run,
                 can_run=agents['CodeGenAgent'].can_run,
@@ -641,10 +640,7 @@ def download_project():
             
             # Check for generated_code structure
             if 'generated_code' in monitor.project_data:
-                code_data = (
-    monitor.project_data.get('best_generated_code')
-    or monitor.project_data.get('generated_code')
-)
+                code_data = monitor.project_data['generated_code']
                 print(f"   💻 Generated code data type: {type(code_data)}")
                 
                 if isinstance(code_data, dict) and 'files' in code_data:
