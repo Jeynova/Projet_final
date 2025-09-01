@@ -620,8 +620,54 @@ class CodeGenAgent(LLMBackedMixin):
         elif any(word in prompt_lower for word in ['social', 'media', 'follow']):
             context += "- Project Type: Social Platform → Focus on users, posts, interactions\n"
         
-        context += "\nGenerate Python code that works well with this tech stack architecture!"
+        context += "\nGenerate code in the appropriate language based on file extension and tech stack!"
         return context
+    
+    def _get_example_code(self, target_lang: str, file_ext: str) -> str:
+        """Provide language-specific example code snippets"""
+        if target_lang == "TypeScript React":
+            return "import React from 'react';\\n\\nconst App: React.FC = () => {\\n  return <div>Hello World</div>;\\n};\\n\\nexport default App;"
+        elif target_lang == "PHP":
+            return "<?php\\nnamespace App\\Controller;\\n\\nclass AppController\\n{\\n    public function index()\\n    {\\n        return ['status' => 'ok'];\\n    }\\n}"
+        elif target_lang == "Java":
+            return "package com.app;\\n\\n@RestController\\npublic class AppController {\\n    @GetMapping(\"/\")\\n    public Map<String, String> root() {\\n        return Map.of(\"status\", \"ok\");\\n    }\\n}"
+        elif target_lang == "Go":
+            return "package main\\n\\nimport \"github.com/gin-gonic/gin\"\\n\\nfunc main() {\\n    r := gin.Default()\\n    r.GET(\"/\", func(c *gin.Context) {\\n        c.JSON(200, gin.H{\"status\": \"ok\"})\\n    })\\n    r.Run()\\n}"
+        else:  # Python default
+            return "from fastapi import FastAPI\\napp = FastAPI()\\n\\n@app.get('/')\\nasync def root():\\n    return {'status': 'ok'}"
+    
+    def _get_baseline_code(self, path: str, target_lang: str, lower_stack: list, purpose: str) -> str:
+        """Generate language-appropriate baseline code"""
+        if target_lang == "TypeScript React":
+            if 'App.tsx' in path:
+                return "import React from 'react';\nimport './App.css';\n\nconst App: React.FC = () => {\n  return (\n    <div className=\"App\">\n      <header className=\"App-header\">\n        <h1>Welcome to the App</h1>\n      </header>\n    </div>\n  );\n};\n\nexport default App;"
+            else:
+                return f"import React from 'react';\n\ninterface Props {{\n  // Add props here\n}}\n\nconst Component: React.FC<Props> = () => {{\n  return <div>{purpose}</div>;\n}};\n\nexport default Component;"
+        elif target_lang == "PHP":
+            if 'Controller' in path:
+                return "<?php\nnamespace App\\Controller;\n\nuse Symfony\\Bundle\\FrameworkBundle\\Controller\\AbstractController;\nuse Symfony\\Component\\HttpFoundation\\JsonResponse;\nuse Symfony\\Component\\Routing\\Annotation\\Route;\n\nclass AppController extends AbstractController\n{\n    #[Route('/', methods: ['GET'])]\n    public function index(): JsonResponse\n    {\n        return new JsonResponse(['status' => 'ok', 'message' => 'API is running']);\n    }\n}\n"
+            else:
+                return f"<?php\nnamespace App;\n\n// {purpose}\nclass {path.split('/')[-1].replace('.php', '').title()}\n{{\n    // Implementation here\n}}\n"
+        elif target_lang == "Java":
+            if 'Application.java' in path:
+                return "package com.app;\n\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\n\n@SpringBootApplication\npublic class Application {\n    public static void main(String[] args) {\n        SpringApplication.run(Application.class, args);\n    }\n}\n"
+            else:
+                class_name = path.split('/')[-1].replace('.java', '')
+                return f"package com.app;\n\nimport org.springframework.web.bind.annotation.*;\n\n@RestController\npublic class {class_name} {{\n    // {purpose}\n}}\n"
+        elif target_lang == "Go":
+            if 'main.go' in path:
+                return "package main\n\nimport (\n    \"github.com/gin-gonic/gin\"\n    \"net/http\"\n)\n\nfunc main() {\n    r := gin.Default()\n    r.GET(\"/\", func(c *gin.Context) {\n        c.JSON(http.StatusOK, gin.H{\n            \"status\": \"ok\",\n            \"message\": \"API is running\",\n        })\n    })\n    r.Run(\":8080\")\n}\n"
+            else:
+                return f"package main\n\n// {purpose}\nfunc main() {{\n    // Implementation here\n}}\n"
+        else:  # Python baseline (existing logic)
+            if path.endswith('app/main.py') and 'fastapi' in lower_stack:
+                return "from fastapi import FastAPI\nfrom fastapi.middleware.cors import CORSMiddleware\n\napp = FastAPI(title='API', description='Generated API')\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=['*'],\n    allow_credentials=True,\n    allow_methods=['*'],\n    allow_headers=['*']\n)\n\n@app.get('/')\nasync def root():\n    return {'status': 'ok', 'message': 'API is running'}\n\n@app.get('/health')\nasync def health():\n    return {'status': 'healthy'}\n"
+            elif path.endswith('app/main.py') and 'flask' in lower_stack:
+                return "from flask import Flask, jsonify\nfrom flask_cors import CORS\n\napp = Flask(__name__)\nCORS(app)\n\n@app.route('/')\ndef root():\n    return jsonify(status='ok', message='API is running')\n\n@app.route('/health')\ndef health():\n    return jsonify(status='healthy')\n\nif __name__ == '__main__':\n    app.run(debug=True, port=8000)\n"
+            elif 'schemas.py' in path:
+                return "from pydantic import BaseModel, Field\nfrom typing import Optional\nfrom datetime import datetime\n\nclass ItemBase(BaseModel):\n    name: str = Field(..., min_length=1)\n    description: Optional[str] = None\n\nclass ItemCreate(ItemBase):\n    pass\n\nclass ItemResponse(ItemBase):\n    id: int\n    created_at: datetime\n    \n    class Config:\n        from_attributes = True\n"
+            else:
+                return f"# {purpose or 'generated file'}\n# Generated for: {path}\n# TODO: Implement functionality\n"
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         raw_files = list(state['architecture'].get('files',[]))
         # Inject entity-driven model stubs if clarify produced entities
@@ -631,9 +677,35 @@ class CodeGenAgent(LLMBackedMixin):
             model_path = f"app/models/{ent.lower()}.py"
             if not any((isinstance(f, dict) and f.get('path')==model_path) or f==model_path for f in raw_files):
                 raw_files.append({'path': model_path, 'purpose': f'model for {ent}'})
-        # Ensure main entry if missing
-        if not any((isinstance(f, dict) and f.get('path')=='app/main.py') or f=='app/main.py' for f in raw_files):
-            raw_files.append({'path':'app/main.py','purpose':'entrypoint'})
+        # Dynamic main entry based on tech stack (not just Python!)
+        stack_names = []
+        for s in state.get('tech', {}).get('stack', []):
+            if isinstance(s, dict) and 'name' in s:
+                stack_names.append(s['name'])
+            elif isinstance(s, str):
+                stack_names.append(s)
+        lower_stack = [n.lower() for n in stack_names]
+        
+        # Determine appropriate entry point based on tech stack
+        main_entry = 'app/main.py'  # default
+        if 'react' in lower_stack or 'typescript' in lower_stack:
+            main_entry = 'src/App.tsx'
+        elif 'vue' in lower_stack:
+            main_entry = 'src/App.vue'
+        elif 'php' in lower_stack or 'symfony' in lower_stack:
+            main_entry = 'src/Controller/AppController.php'
+        elif 'java' in lower_stack or 'spring' in lower_stack:
+            main_entry = 'src/main/java/com/app/Application.java'
+        elif 'csharp' in lower_stack or 'asp.net' in lower_stack:
+            main_entry = 'Program.cs'
+        elif 'go' in lower_stack:
+            main_entry = 'main.go'
+        elif 'node' in lower_stack or 'express' in lower_stack:
+            main_entry = 'src/server.js'
+        
+        # Ensure appropriate main entry if missing
+        if not any((isinstance(f, dict) and f.get('path')==main_entry) or f==main_entry for f in raw_files):
+            raw_files.append({'path': main_entry, 'purpose': 'Application entry point'})
         files = []
         for spec in raw_files:
             if isinstance(spec, str):
@@ -676,15 +748,37 @@ class CodeGenAgent(LLMBackedMixin):
             # Tech stack intelligent analysis for better Python generation
             tech_context = self._analyze_tech_stack(stack_names, state.get('prompt', ''))
             
-            # Enhanced LLM prompt using tech stack as intelligent hints
+            # Enhanced LLM prompt - LET THE LLM CODE IN ANY APPROPRIATE LANGUAGE!
+            file_ext = path.split('.')[-1] if '.' in path else 'py'
+            
+            # Determine target language based on file extension and tech stack
+            target_lang = "Python"  # default
+            if file_ext in ['tsx', 'jsx']:
+                target_lang = "TypeScript React"
+            elif file_ext == 'ts':
+                target_lang = "TypeScript"
+            elif file_ext == 'js':
+                target_lang = "JavaScript"
+            elif file_ext == 'php':
+                target_lang = "PHP"
+            elif file_ext == 'java':
+                target_lang = "Java"
+            elif file_ext == 'cs':
+                target_lang = "C#"
+            elif file_ext == 'go':
+                target_lang = "Go"
+            elif file_ext == 'vue':
+                target_lang = "Vue.js"
+            
             code_prompt = f"""
-            You are a Code Generation Agent that writes production-quality Python code.
+            You are a Code Generation Agent that writes production-quality {target_lang} code.
             
             Project request: "{state.get('prompt', '')}"
             Tech stack detected: {stack_names}
             Architecture files: {[f.get('path', '') for f in files]}
+            Target language: {target_lang} (based on file extension: .{file_ext})
             
-            Generate complete, working Python code for:
+            Generate complete, working {target_lang} code for:
             File: {path}
             Purpose: {purpose}
             
@@ -764,14 +858,14 @@ class CodeGenAgent(LLMBackedMixin):
             - Write functional, not placeholder code
             '''
             
-            code_prompt += '''
+            code_prompt += f'''
             
             Requirements:
-            - Write COMPLETE, FUNCTIONAL code - not templates or placeholders
-            - Follow best practices for FastAPI and SQLAlchemy
-            - Include proper imports and dependencies
+            - Write COMPLETE, FUNCTIONAL {target_lang} code - not templates or placeholders
+            - Follow best practices for the {target_lang} language and chosen frameworks
+            - Include proper imports and dependencies for {target_lang}
             - Add error handling where appropriate
-            - Include docstrings/comments for clarity
+            - Include comments/documentation for clarity
             - Make it production-ready
             - Ensure the code actually implements the intended functionality
             
@@ -780,12 +874,12 @@ class CodeGenAgent(LLMBackedMixin):
                 "code": "complete file content as a single string"
             }
             
-            Example response:
-            {
-                "code": "from fastapi import FastAPI\\napp = FastAPI()\\n\\n@app.get('/')\\nasync def root():\\n    return {'status': 'ok'}"
-            }
+            Example response for {target_lang}:
+            {{
+                "code": "{self._get_example_code(target_lang, file_ext)}"
+            }}
             
-            Generate REAL working code, not placeholder comments.
+            Generate REAL working {target_lang} code, not placeholder comments.
             '''
             
             # Framework-aware deterministic baseline if LLM returns weak content
@@ -805,8 +899,10 @@ class CodeGenAgent(LLMBackedMixin):
             elif 'routes' in path.lower() and 'product' in path.lower():
                 if 'fastapi' in lower_stack:
                     baseline = f"from fastapi import APIRouter, HTTPException, Depends\nfrom sqlalchemy.orm import Session\nfrom typing import List\nfrom .. import models, database\nfrom ..schemas import ProductCreate, ProductResponse\n\nrouter = APIRouter(\n    prefix='/products',\n    tags=['products']\n)\n\n@router.get('/', response_model=List[ProductResponse])\nasync def get_products(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db)):\n    products = db.query(models.Product).offset(skip).limit(limit).all()\n    return products\n\n@router.post('/', response_model=ProductResponse)\nasync def create_product(product: ProductCreate, db: Session = Depends(database.get_db)):\n    db_product = models.Product(**product.dict())\n    db.add(db_product)\n    db.commit()\n    db.refresh(db_product)\n    return db_product\n\n@router.get('/{{product_id}}', response_model=ProductResponse)\nasync def get_product(product_id: int, db: Session = Depends(database.get_db)):\n    product = db.query(models.Product).filter(models.Product.id == product_id).first()\n    if not product:\n        raise HTTPException(status_code=404, detail='Product not found')\n    return product\n"
+            # Language-aware deterministic baseline if LLM returns weak content
+            baseline = self._get_baseline_code(path, target_lang, lower_stack, purpose)
             
-            fb = {'code': baseline or f"# {purpose or 'generated file'}\n# Generated for: {path}\nprint('LLM-generated placeholder for {path}')"}
+            fb = {'code': baseline or f"# {purpose or 'generated file'}\n# Generated for: {path}\n# Language: {target_lang}"}
             rag_section = ''
             if state.get('memory', {}).get('rag_context'):
                 rag_section = f"\nPrevious project context:\n{state['memory']['rag_context']}\n"
@@ -814,7 +910,7 @@ class CodeGenAgent(LLMBackedMixin):
             
             try:
                 track_llm_call("CodeGenAgent", "code_generation")
-                res = self.llm_json('You are a senior software engineer. Write production-quality code.', code_prompt, fb)
+                res = self.llm_json(f'You are a senior {target_lang} developer. Write production-quality {target_lang} code.', code_prompt, fb)
                 
                 # Enhanced response processing
                 content = ''
@@ -880,8 +976,9 @@ class CodeGenAgent(LLMBackedMixin):
             except Exception as llm_error:
                 print(f"   ❌ LLM call failed for {path}: {llm_error}")
                 continue
-        # Post-pass enrichment for FastAPI domain routes
-        if 'fastapi' in lower_stack:
+        # Post-pass enrichment based on tech stack and language
+        if 'fastapi' in lower_stack or 'python' in lower_stack:
+            # Only add Python-specific enrichment for Python projects
             prompt = state.get('prompt','').lower()
             domains = []
             for kw in ['user','post','task','item']:
@@ -907,6 +1004,33 @@ class CodeGenAgent(LLMBackedMixin):
                         "from fastapi import APIRouter\nfrom pydantic import BaseModel\nrouter = APIRouter(prefix='/{name}s', tags=['{name}s'])\nclass {cls}(BaseModel):\n    id: int | None = None\n    name: str\n_db: list[{cls}] = []\n@router.post('/', response_model={cls})\nasync def create_{name}(data: {cls}):\n    data.id = len(_db)+1\n    _db.append(data)\n    return data\n@router.get('/', response_model=list[{cls}])\nasync def list_{name}s():\n    return _db\n".replace('{name}', d).replace('{cls}', d.capitalize())
                     )
                     written.append(f'app/routes/{d}s.py')
+        elif 'react' in lower_stack and 'typescript' in lower_stack:
+            # Add React+TypeScript specific enrichment
+            src_dir = self.project_root / 'src'
+            components_dir = src_dir / 'components'
+            src_dir.mkdir(parents=True, exist_ok=True)
+            components_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Add package.json if missing
+            package_path = self.project_root / 'package.json'
+            if not package_path.exists():
+                package_content = '''{{
+  "name": "app",
+  "version": "1.0.0",
+  "dependencies": {{
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  }},
+  "scripts": {{
+    "start": "react-scripts start",
+    "build": "react-scripts build"
+  }}
+}}'''
+                package_path.write_text(package_content)
+                written.append('package.json')
+        
+        print(f"   🎯 Generated {len(written)} files with multi-language support!")
         return {'files': written}
 
 class ManifestAgent(LLMBackedMixin):

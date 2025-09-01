@@ -1,0 +1,62 @@
+[
+  {
+    "prompt": "Create a social media dashboard for businesses",
+    "tech_stack": [],
+    "success_score": 5,
+    "timestamp": "2025-09-01T10:08:02.338718"
+  },
+  {
+    "prompt": "Create an e-commerce platform with payment integration",
+    "tech_stack": [
+      {
+        "role": "backend",
+        "name": "Django",
+        "reasoning": "Django is chosen as the backend framework due to its robustness, security features, and built-in support for complex web applications. It has a strong community and a large ecosystem of packages that can facilitate payment integration."
+      },
+      {
+        "role": "frontend",
+        "name": "React.js",
+        "reasoning": "React is selected for the frontend because it offers a fast and efficient way to build dynamic user interfaces. Its component-based architecture allows for easier maintenance and scalability of the application."
+      },
+      {
+        "role": "database",
+        "name": "PostgreSQL",
+        "reasoning": "PostgreSQL is chosen as the database due to its ACID compliance, robustness, extensive features, and excellent support for complex queries and relationships. It ensures that all financial transactions are handled with high precision and reliability."
+      },
+      {
+        "role": "deployment",
+        "name": "Docker + Kubernetes",
+        "reasoning": "Using Docker containers along with Kubernetes for deployment allows for easy scaling, redundancy, and isolation of services. This setup is particularly suitable for e-commerce platforms where uptime and performance are critical."
+      }
+    ],
+    "success_score": 6,
+    "timestamp": "2025-09-01T10:10:51.711053"
+  },
+  {
+    "prompt": "Build a real-time chat application with WebSocket support",
+    "tech_stack": [
+      {
+        "role": "backend",
+        "name": "Node.js",
+        "reasoning": "Node.js is a lightweight, scalable JavaScript runtime that can handle high-concurrency scenarios efficiently, making it ideal for real-time applications like chat services."
+      },
+      {
+        "role": "frontend",
+        "name": "React",
+        "reasoning": "React provides excellent performance and a clean structure for building user interfaces. It's particularly well-suited for single-page applications where the UI needs to update in response to user actions."
+      },
+      {
+        "role": "database",
+        "name": "MongoDB",
+        "reasoning": "MongoDB is a NoSQL database that supports JSON-like documents, which makes it a natural fit for storing chat messages and user data. Its flexibility and scalability make it well-suited for real-time applications with varying loads."
+      },
+      {
+        "role": "deployment",
+        "name": "AWS Elastic Beanstalk",
+        "reasoning": "Elastic Beanstalk simplifies the deployment process by abstracting away much of the infrastructure management. It supports Node.js natively, making it easy to deploy our application with minimal setup."
+      }
+    ],
+    "success_score": 7,
+    "timestamp": "2025-09-01T12:20:27.849060"
+  }
+]
