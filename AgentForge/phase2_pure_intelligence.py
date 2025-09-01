@@ -31,7 +31,7 @@ class IntelligentDomainDetector:
         'api': ['api', 'rest', 'endpoint', 'microservice', 'service'],
         'productivity': ['task', 'tasks', 'project', 'projects', 'kanban', 'scrum', 'team', 'teams', 'collaboration', 'assign', 'deadline']
     }
-    def analyze_project(self, prompt: str) -> Dict[str, any]:
+    def analyze_project(self, prompt: str) -> Dict[str, Any]:
         p = (prompt or "").lower()
         scores = {d: sum(3 for w in ws if w in p) for d, ws in self.DOMAIN_PATTERNS.items()}
         best = max(scores.items(), key=lambda x: x[1]) if scores else ('general', 0)
@@ -59,18 +59,80 @@ class LLMBackedMixin:
             return fallback
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 🔧 HELPERS
+# 🔧 HELPERS (reactive scheduling + contract utils)
 # ──────────────────────────────────────────────────────────────────────────────
+def schedule_agents(state: Dict[str, Any], agent_ids, front: bool = False):
+    q = state.setdefault('next_agents', [])
+    if isinstance(agent_ids, str):
+        agent_ids = [agent_ids]
+    for aid in agent_ids:
+        if front:
+            q.insert(0, aid)
+        else:
+            q.append(aid)
+
+def emit_event(state: Dict[str, Any], event: Dict[str, Any]):
+    """Emit a standardized event with type and meta fields"""
+    events = state.setdefault('events', [])
+    
+    # Ensure event has proper structure
+    if isinstance(event, str):
+        # Convert string events to dict format
+        event = {"type": event, "meta": {}}
+    elif not isinstance(event, dict):
+        event = {"type": str(event), "meta": {}}
+    elif 'type' not in event:
+        event = {"type": "unknown", "meta": event}
+    
+    events.append(event)
+
+def get_event_type(event) -> str:
+    """Safely extract event type from either string or dict format"""
+    if isinstance(event, dict):
+        return event.get('type', 'unknown')
+    return str(event)
+
+def filter_events_by_type(events: List, exclude_type: str) -> List:
+    """Filter out events of a specific type, handling both string and dict formats"""
+    return [e for e in events if get_event_type(e) != exclude_type]
+
+def has_event_type(events: List, event_type: str) -> bool:
+    """Check if events list contains an event of the specified type"""
+    return any(get_event_type(e) == event_type for e in events)
+
 def _is_contract_empty(c: dict) -> bool:
     c = c or {}
     has_files = isinstance(c.get('files'), list) and len(c['files']) > 0
     has_eps   = isinstance(c.get('endpoints'), list) and len(c['endpoints']) > 0
     return not (has_files and has_eps)
 
+def _merge_contract(base: Dict[str, Any], add: Dict[str, Any]) -> Dict[str, Any]:
+    base = base or {}; add = add or {}; out = {**base}
+    bf, af = base.get('files') or [], add.get('files') or []
+    out['files'] = sorted(set(bf + af))
+    be = base.get('endpoints') or []; ae = add.get('endpoints') or []
+    seen = {(e.get('method','GET').upper(), e.get('path','')) for e in be}
+    for e in ae:
+        key = (e.get('method','GET').upper(), e.get('path',''))
+        if key not in seen:
+            be.append({'method': key[0], 'path': key[1]}); seen.add(key)
+    out['endpoints'] = be
+    bt = base.get('tables') or []; at = add.get('tables') or []
+    seen_t = {t.get('name','') for t in bt}
+    for t in at:
+        n = t.get('name',''); 
+        if n and n not in seen_t:
+            bt.append({'name': n}); seen_t.add(n)
+    out['tables'] = bt
+    src = base.get('source') or 'llm'
+    out['source'] = f"{src}+merge"
+    return out
+
 # ──────────────────────────────────────────────────────────────────────────────
 # 🔀 VALIDATION ROUTER (loop control)
 # ──────────────────────────────────────────────────────────────────────────────
 class ValidationRouter:
+    id = "ValidationRouter"
     name = "ValidationRouter"
     def can_run(self, state):
         return ('validation' in state and state.get('routed_after_iter', -1) < state.get('last_validated_iter', -1))
@@ -98,12 +160,16 @@ class ValidationRouter:
         if contract_empty and it < max_iters:
             result['redo_contract'] = True
             result['redo_codegen'] = True
+            result['next_agents'] = ['contract','codegen']
+            result['events'] = state.get('events', []) + [{"type": "refinement_triggered", "meta": {"reason": "contract_missing", "iteration": it+1}}]
             print(f"📐 CONTRACT MISSING on iter {it} → derive contract and regenerate code (iter {it+1})")
             return result
 
         if missing_baseline and it < max_iters:
             result['redo_contract'] = True
             result['redo_codegen'] = True
+            result['next_agents'] = ['contract','codegen']
+            result['events'] = state.get('events', []) + [{"type": "refinement_triggered", "meta": {"reason": "baseline_missing", "missing_items": missing_baseline, "iteration": it+1}}]
             msg = ", ".join(missing_baseline[:4]) + ("…" if len(missing_baseline) > 4 else "")
             print(f"🧱 BASELINE MISSING ({msg}) → update contract & regenerate (iter {it+1})")
             return result
@@ -111,12 +177,16 @@ class ValidationRouter:
         # no code → retry if possible
         if status == 'no_code' and it < max_iters:
             result['redo_codegen'] = True
+            result['next_agents'] = ['codegen']
+            result['events'] = state.get('events', []) + [{"type": "refinement_triggered", "meta": {"reason": "no_code", "iteration": it+1}}]
             print(f"⚠️ NO CODE on iter {it} → retry (iter {it+1})")
             return result
 
         # refine or stop
         if it < max_iters:
             result['redo_codegen'] = True
+            result['next_agents'] = ['codegen']
+            result['events'] = state.get('events', []) + [{"type": "refinement_triggered", "meta": {"reason": "quality_improvement", "score": score, "threshold": threshold, "iteration": it+1}}]
             print(f"🔄 REFINEMENT: Score {score}/10 < {threshold}/10 → iterate (iter {it+1})")
         else:
             result['goal_reached'] = True
@@ -124,7 +194,7 @@ class ValidationRouter:
         return result
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 🎓 LEARNING MEMORY
+# 🎓 LEARNING MEMORY (now: learns → seeds/merges contract → teaches → acts)
 # ──────────────────────────────────────────────────────────────────────────────
 class LearningMemoryAgent(LLMBackedMixin):
     id = "memory"
@@ -133,8 +203,18 @@ class LearningMemoryAgent(LLMBackedMixin):
         self.rag = rag_store
         self.detector = IntelligentDomainDetector()
         self.experience_db = experience_db or {}
+
     def can_run(self, state: Dict[str, Any]) -> bool:
-        return 'memory' not in state
+        never_ran = 'memory' not in state
+        post_validation = 'last_validated_iter' in state and state.get('memory_epoch', -1) < state.get('last_validated_iter', -1)
+        
+        # Use standardized event checking
+        events = state.get('events', [])
+        event_triggered = (has_event_type(events, 'validation_completed') or 
+                          has_event_type(events, 'refinement_triggered')) and not state.get('memory_after_validation_done', False)
+        
+        return never_ran or post_validation or event_triggered
+
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         prompt = state.get('prompt', '')
         analysis = self.detector.analyze_project(prompt)
@@ -161,21 +241,79 @@ class LearningMemoryAgent(LLMBackedMixin):
                 print(f"   ⚠️ RAG lookup failed: {e}")
 
         guidance = self._get_experience_guidance(prompt, analysis)
-        all_hints = rag_hints + guidance.get('experience_hints', [])
+        all_hints = (guidance.get('experience_hints') or []) + rag_hints
+
+        # compile a MEMORY POLICY (prefer/avoid/seed/validation/coach_notes)
+        sys_policy = """Compile a MEMORY POLICY. Return STRICT JSON:
+{
+  "prefer": {"backend": [], "frontend": [], "database": [], "deployment": []},
+  "avoid": {"backend": [], "frontend": [], "database": [], "deployment": []},
+  "seed_contract": {
+    "files": ["backend/app.*","frontend/src/App.*","docker-compose.yml",".env.example","README.md","Makefile"],
+    "endpoints": [{"method":"GET","path":"/api/health"},{"method":"GET","path":"/docs"}],
+    "tables": [{"name":"users"}]
+  },
+  "validation": {"min_score": 7, "require_valid": false, "mode": "guided"},
+  "coach_notes": ["short, practical build tips (10 words max each)"]
+}
+Only concrete names; seed must be runnable."""
+        user_policy = f"Domain={analysis.get('domain')} perf={analysis.get('performance_needs')} hints={all_hints[:6]}"
+        fallback_policy = {
+            "prefer": {"backend": [], "frontend": [], "database": [], "deployment": []},
+            "avoid": {"backend": [], "frontend": [], "database": [], "deployment": []},
+            "seed_contract": {
+                "files": ["backend/app.js","frontend/src/App.js","docker-compose.yml",".env.example","README.md","Makefile"],
+                "endpoints": [{"method":"GET","path":"/api/health"},{"method":"GET","path":"/docs"}],
+                "tables": [{"name":"users"}]
+            },
+            "validation": {"min_score": 7, "require_valid": False, "mode": "guided"},
+            "coach_notes": ["use env vars", "add health check"]
+        }
+        policy = self.llm_json(sys_policy, user_policy, fallback_policy)
+
+        # apply policy: seed/merge contract + set validation knobs + coach notes
+        existing = state.get('contract', {})
+        seeded = policy.get('seed_contract') or {}
+        if seeded:
+            merged = _merge_contract(existing, seeded) if existing else {**seeded, "source": "memory_seed"}
+            print("📐 MEMORY → seeded/merged contract")
+        else:
+            merged = existing
+
+        res = {
+            **analysis,
+            **guidance,
+            "memory_policy": policy,
+            "contract": merged,
+            "contract_seeded_by_memory": bool(seeded),
+            "validation_threshold": policy.get('validation', {}).get('min_score', state.get('validation_threshold', 7)),
+            "require_valid_status": policy.get('validation', {}).get('require_valid', state.get('require_valid_status', False)),
+            "file_contract_mode": policy.get('validation', {}).get('mode', state.get('file_contract_mode','guided')),
+            "coach_notes": policy.get('coach_notes', []),
+            "memory": True,
+            "memory_epoch": state.get('last_validated_iter', state.get('memory_epoch', 0)),
+            "memory_after_validation_done": True  # Prevent thrashing
+        }
+
+        # If post-validation gaps exist, escalate strictness and schedule fixes
+        if 'validation' in state:
+            val = state['validation']
+            gaps = (val.get('missing_files') or []) + (val.get('missing_endpoints') or [])
+            if gaps and state.get('file_contract_mode') != 'strict':
+                print("🧠 MEMORY → escalating contract mode to 'strict' next round")
+                res['file_contract_mode'] = 'strict'
+                schedule_agents(state, ['contract','codegen'], front=True)
+
+        # echo learning analysis
         print("🧠 LEARNING MEMORY ANALYSIS:")
         print(f"   🎯 Domain: {analysis.get('domain')} (confidence: {analysis.get('confidence',0):.1%})")
         print(f"   📊 Complexity: {analysis.get('complexity')}")
         print(f"   ⚡ Performance: {analysis.get('performance_needs')}")
         if similar_cnt: print(f"   📚 RAG: {similar_cnt} similar projects found; conf {rag_conf:.1%}")
         if all_hints:
-            print(f"   🎓 Total hints: {len(all_hints)}"); [print(f"      💡 {h}") for h in all_hints[:2]]
-        if guidance.get('warnings'):
-            print(f"   ⚠️ Warnings: {', '.join(guidance['warnings'][:2])}")
+            print(f"   🎓 Total hints: {len(all_hints)}")
+            for h in all_hints[:2]: print(f"      💡 {h}")
 
-        res = {**analysis, **guidance, 'rag_hints': rag_hints, 'rag_confidence': rag_conf, 'similar_projects_count': similar_cnt}
-        res['experience_hints'] = all_hints[:5]; res['hints'] = all_hints[:5]
-        if guidance.get('complete_solution'):
-            res.update(guidance['complete_solution']); print("   🚀 BYPASS: experience provides complete solution!")
         return res
 
     def _get_experience_guidance(self, prompt: str, analysis: Dict) -> Dict:
@@ -216,33 +354,51 @@ class LearningMemoryAgent(LLMBackedMixin):
             print(f"⚠️ LEARNED WARNING: {backend.get('name')} struggled for {domain}")
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 🎭 MULTI-PERSPECTIVE TECH TEAM
+# 🎭 MULTI-PERSPECTIVE TECH TEAM (honors memory; can be re-invoked via events)
 # ──────────────────────────────────────────────────────────────────────────────
 class MultiPerspectiveTechAgent(LLMBackedMixin):
     id = "tech_team"
     def __init__(self): super().__init__()
     def can_run(self, state: Dict[str, Any]) -> bool:
-        return 'tech_stack' not in state and any(k in state for k in ['domain','complexity','performance_needs'])
+        need_initial = 'tech_stack' not in state and any(k in state for k in ['domain','complexity','performance_needs'])
+        
+        # Use standardized event checking
+        events = state.get('events', [])
+        reinvoke = has_event_type(events, 'need_debate')
+        
+        return need_initial or reinvoke
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         track_llm_call("🎭 MultiPerspectiveTechAgent", "parallel team debate decision")
-        prompt = state.get('prompt',''); hints = state.get('experience_hints',[]); warnings = state.get('experience_warnings',[])
+        prompt = state.get('prompt','')
+        hints = state.get('experience_hints',[])
+        warnings = state.get('experience_warnings',[])
+        mem = state.get('memory_policy', {}) or {}
+        prefer, avoid = mem.get('prefer',{}), mem.get('avoid',{})
+        coach_notes = state.get('coach_notes',[])
+
         domain, complexity, performance = state.get('domain','general'), state.get('complexity','moderate'), state.get('performance_needs','medium')
-        debate_context = "\n".join([f"Project: {prompt}",
-                                    f"Domain: {domain} (complexity: {complexity}, performance: {performance})",
-                                    f"Experience: {'; '.join(hints) if hints else '—'}",
-                                    f"Warnings: {'; '.join(warnings) if warnings else '—'}"])
+        debate_context = "\n".join([
+            f"Project: {prompt}",
+            f"Domain: {domain} (complexity: {complexity}, performance: {performance})",
+            f"Experience: {'; '.join(hints) if hints else '—'}",
+            f"Warnings: {'; '.join(warnings) if warnings else '—'}",
+            f"Memory Prefer: {prefer}",
+            f"Memory Avoid: {avoid}",
+            f"Coach Notes: {coach_notes[:3]}"
+        ])
         try:
             print("🎭 Starting parallel team debate for technology decision...")
             debate_results = run_debate(self.llm_client, "Technology Stack Decision", debate_context)
             print("⚖️ Moderating parallel perspectives into consensus...")
             team_consensus = moderate(self.llm_client, "Synthesize team perspectives", debate_results)
             extraction_prompt = """Extract one concrete stack from TEAM CONSENSUS.
+Honor Memory Prefer/Avoid if reasonable.
 Rules: Return exactly one concrete choice per category; do NOT use 'or', '/', 'either', or multiple options.
 Return STRICT JSON:
 {
   "backend": {"name": "chosen_backend", "reasoning": "why"},
   "frontend": {"name": "chosen_frontend", "reasoning": "why"},
-  ️"database": {"name": "chosen_database", "reasoning": "why"},
+  "database": {"name": "chosen_database", "reasoning": "why"},
   "deployment": {"name": "chosen_deployment", "reasoning": "why"},
   "team_discussion": "short summary",
   "debate_method": "concurrent_parallel_execution"
@@ -266,6 +422,9 @@ Return STRICT JSON:
         for role, details in result.items():
             if role != 'team_discussion' and isinstance(details, dict) and 'name' in details:
                 tech_stack.append({'role': role, 'name': details.get('name','Unknown'), 'reasoning': details.get('reasoning','Team decision')})
+
+        # clear trigger event (if any) - use standardized event filtering
+        state['events'] = filter_events_by_type(state.get('events', []), 'need_debate')
         return {'tech_stack': tech_stack, 'team_decision_process': result}
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -377,17 +536,24 @@ Only include capabilities that make sense for the request; keep it concise."""
         return {"capabilities": caps}
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 📐 CONTRACT AGENT (LLM proposes files/endpoints/tables) — rerunnable
+# 📐 CONTRACT AGENT (LLM proposes files/endpoints/tables) — rerunnable + merge
 # ──────────────────────────────────────────────────────────────────────────────
 class ContractAgent(LLMBackedMixin):
     id = "contract"
     def __init__(self): super().__init__()
     def can_run(self, state: Dict[str, Any]) -> bool:
-        needs_redo = state.get('redo_contract', False)
+        # Use standardized event checking
+        events = state.get('events', [])
+        needs_redo = state.get('redo_contract', False) or has_event_type(events, 'expand_contract')
+        
         return (('contract' not in state) or needs_redo) and ('capabilities' in state) and ('tech_stack' in state)
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         track_llm_call("📐 ContractAgent", "derive delivery contract")
         _ = state.pop('redo_contract', False)
+        
+        # clear expand_contract event if present - use standardized event filtering
+        state['events'] = filter_events_by_type(state.get('events', []), 'expand_contract')
+
         tech_stack = state.get('tech_stack', [])
         caps = state.get('capabilities', {})
         sys_p = """Given the chosen stack and capabilities, propose a PRACTICAL delivery CONTRACT.
@@ -415,10 +581,11 @@ Keep ≤ 30 files. Match file extensions to the chosen backend."""
             "endpoints":[{"method":"GET","path":"/api/health"},{"method":"GET","path":"/docs"}],
             "tables":[{"name":"users"}]
         }
-        contract = self.llm_json(sys_p, user_p, fallback)
-        contract['source'] = 'llm'
-        if _is_contract_empty(contract):
-            print("⚠️ ContractAgent produced an empty contract – downstream will draft a minimal one.")
+        proposed = self.llm_json(sys_p, user_p, fallback)
+        proposed['source'] = 'llm'
+        existing = state.get('contract', {})
+        contract = _merge_contract(existing, proposed) if existing else proposed
+        print(f"📐 ContractAgent: merged → {len(contract.get('files',[]))} files, {len(contract.get('endpoints',[]))} endpoints")
         return {"contract": contract}
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -502,6 +669,21 @@ class CodeGenAgent(LLMBackedMixin):
         database = next((t for t in tech_stack if t.get('role')=='database'),{})
         contract = state.get('contract',{}) or {}
         mode = state.get('file_contract_mode','guided')  # 'free'|'guided'|'strict'
+        coach_notes = state.get('coach_notes', [])
+
+        # Memory coaching block
+        mem = state.get('memory_policy', {}) or {}
+        prefer = ", ".join(str(p) for role_prefs in mem.get('prefer', {}).values() for p in (role_prefs if isinstance(role_prefs, list) else []))
+        avoid  = ", ".join(str(a) for role_avoids in mem.get('avoid', {}).values() for a in (role_avoids if isinstance(role_avoids, list) else []))
+        coach  = "\n".join(f"- {n}" for n in state.get('coach_notes', []))
+
+        memory_block = f"""
+### MEMORY COACHING
+Prefer: {prefer or '—'}
+Avoid: {avoid or '—'}
+Coaching:
+{coach or '—'}
+"""
 
         # draft a minimal contract inline if still missing
         if _is_contract_empty(contract):
@@ -539,6 +721,14 @@ Return STRICT JSON:
         if missing_eps:   fb.append("Missing endpoints last iteration: " + ", ".join(missing_eps[:20]))
         feedback_block = ("\n\nFix these before anything else:\n- " + "\n- ".join(fb)) if fb else ""
 
+        targeted_files = state.get('contract_missing_files', [])
+        targeted_eps   = state.get('contract_missing_endpoints', [])
+        target_block = ""
+        if targeted_files or targeted_eps:
+            target_block = "\n\n# TARGETED FIXES\n" + \
+                (f"- Implement missing files: {', '.join(targeted_files[:20])}\n" if targeted_files else "") + \
+                (f"- Implement missing endpoints: {', '.join(targeted_eps[:20])}\n" if targeted_eps else "")
+
         contract_block = ""
         if contract:
             req_files = "\n".join(f"- {p}" for p in (contract.get('files') or [])[:60])
@@ -565,6 +755,9 @@ REQUIRED TABLES:
 🏗️ ARCHITECTURE:
 Structure: {architecture.get('project_structure',{})}
 Key Components: {', '.join(architecture.get('key_components',[]))}
+{memory_block}
+MEMORY COACH NOTES (follow pragmatically):
+- {chr(10).join(coach_notes[:8])}{target_block}
 
 {contract_block}{strict_line}{feedback_block}
 
@@ -644,7 +837,7 @@ class DeploymentAgent(LLMBackedMixin):
         return {'deployment': result}
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ✅ VALIDATION AGENT (baseline + contract coverage)
+# ✅ VALIDATION AGENT (baseline + contract coverage) — emits events & schedules
 # ──────────────────────────────────────────────────────────────────────────────
 class ValidateAgent(LLMBackedMixin):
     id = "validate"
@@ -755,6 +948,15 @@ SAMPLED PREVIEWS ({len(previews)} files, truncated):
             if me: print(f"   🔗 Missing endpoints: {len(me)} (e.g., {', '.join(me[:3])})")
             if mb: print(f"   🧱 Missing baseline: {', '.join(mb[:5])}{'…' if len(mb)>5 else ''}")
 
+        # Emit reactive events + schedule agents
+        nexts = []
+        if mf or me:
+            emit_event(state, {"type":"expand_contract","missing_files": mf, "missing_endpoints": me, "source":"validate"})
+            nexts.extend(['contract','codegen'])
+        if result.get('technical_score',0) <= 4 or result.get('architecture_score',0) <= 3:
+            emit_event(state, {"type":"need_debate","reason":"low_quality_after_validation"})
+            nexts.append('tech_team')
+
         current_iter = state.get('codegen_iters', 0)
         best_score = state.get('best_validation_score', -1)
         if result.get('score',0) > best_score:
@@ -769,7 +971,10 @@ SAMPLED PREVIEWS ({len(previews)} files, truncated):
             'contract_missing_files': mf,
             'contract_missing_endpoints': me,
             'missing_baseline': mb,
-            'contract_empty': contract_empty
+            'contract_empty': contract_empty,
+            'next_agents': nexts,
+            'events': state.get('events', []) + [{"type": "validation_completed", "meta": {"score": result.get('score', 0), "status": result.get('status', 'unknown'), "iteration": current_iter}}],
+            'memory_after_validation_done': False  # Reset memory gate
         }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -795,10 +1000,10 @@ Return STRICT JSON:
         return {'evaluation': result}
 
 # ──────────────────────────────────────────────────────────────────────────────
-# 🎯 ORCHESTRATOR
+# 🎯 REACTIVE ORCHESTRATOR (event/queue loop)
 # ──────────────────────────────────────────────────────────────────────────────
 class PureIntelligenceOrchestrator:
-    """LLM-only contract + validation pipeline (no local heuristics)"""
+    """LLM-only contract + validation pipeline with reactive agent scheduling"""
     def __init__(self, rag_store=None):
         self.agents = [
             LearningMemoryAgent(rag_store),
@@ -815,23 +1020,42 @@ class PureIntelligenceOrchestrator:
             ValidationRouter(),
             EvaluationAgent()
         ]
+        # registry by id and by class name (for ValidationRouter)
+        self.registry = {a.id: a for a in self.agents}
+        for a in self.agents:
+            self.registry[a.__class__.__name__] = a
         self.learning_memory = self.agents[0]
 
     def run_pipeline(self, prompt: str) -> Dict[str, Any]:
         print(f"🎭 PURE INTELLIGENCE PIPELINE: {prompt[:50]}...")
         state = {
             'prompt': prompt,
-            'max_codegen_iters': 4,       # demo-friendly
-            'validation_threshold': 7,    # demo-friendly
-            'file_contract_mode': 'strict',  # make contract/baseline coverage matter
+            'max_codegen_iters': 4,
+            'validation_threshold': 7,
+            'file_contract_mode': 'guided',
+            'events': [],
+            'next_agents': ['memory','tech_team','stack_resolver','capabilities','contract','contract_guard','architecture','codegen','database','deployment','validate','ValidationRouter','evaluation']
         }
-        for agent in self.agents:
+
+        step, max_steps = 0, 60
+        while state.get('next_agents') and step < max_steps and not state.get('goal_reached', False):
+            step += 1
+            agent_id = state['next_agents'].pop(0)
+            agent = self.registry.get(agent_id)
+            if not agent:
+                continue
             try:
                 if agent.can_run(state):
                     print(f"\n🔄 Running {agent.__class__.__name__}")
-                    result = agent.run(state); state.update(result)
+                    result = agent.run(state) or {}
+                    # merge state
+                    state.update(result)
+                    # schedule follow-ups returned by agent
+                    if 'next_agents' in result:
+                        schedule_agents(state, result['next_agents'], front=False)
                 else:
-                    print(f"⏭️ Skipping {agent.__class__.__name__} - conditions not met")
+                    # silently skip if conditions not met
+                    pass
             except Exception as e:
                 print(f"❌ {agent.__class__.__name__} failed: {e}")
                 import traceback; traceback.print_exc(); continue

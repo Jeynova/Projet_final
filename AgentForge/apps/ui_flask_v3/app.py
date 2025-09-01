@@ -49,7 +49,11 @@ try:
         DeploymentAgent,
         ValidateAgent,
         EvaluationAgent,
-        ValidationRouter
+        ValidationRouter,
+        StackResolverAgent,
+        ContractPresenceGuard,
+        CapabilityAgent,
+        ContractAgent
     )
     ORGANIC_AVAILABLE = True
     print("✅ Organic Intelligence system imported successfully")
@@ -474,24 +478,45 @@ class UIAwareOrchestrator:
             'prompt': prompt,
             'max_codegen_iters': 4,         # number of refinement loops allowed (demo-friendly)
             'validation_threshold': 7,      # required quality (demo-friendly)
+            'file_contract_mode': 'strict',  # <- baseline must be met
+            'events': []                     # <- enable event-aware can_run
         }
 
         nodes = {
+            # Learning runs again post-validation (so it can coach)
             'LearningMemoryAgent': Node('LearningMemoryAgent',
                 run=agents['LearningMemoryAgent'].run,
-                can_run=agents['LearningMemoryAgent'].can_run),
+                can_run=agents['LearningMemoryAgent'].can_run,
+                repeatable=True),
 
+            # Tech team can be re-invoked when Validate emits need_debate
             'MultiPerspectiveTechAgent': Node('MultiPerspectiveTechAgent',
                 run=agents['MultiPerspectiveTechAgent'].run,
                 can_run=agents['MultiPerspectiveTechAgent'].can_run,
-                parallel_group="debate"),
+                parallel_group="debate",
+                repeatable=True),
+
+            # Include capability + contract and make contract rerunnable
             'CapabilityAgent': Node('CapabilityAgent',
                 run=agents['CapabilityAgent'].run,
                 can_run=agents['CapabilityAgent'].can_run),
 
             'ContractAgent': Node('ContractAgent',
                 run=agents['ContractAgent'].run,
-                can_run=agents['ContractAgent'].can_run),
+                can_run=agents['ContractAgent'].can_run,
+                repeatable=True),
+
+            # NEW: ensure contract exists
+            'ContractPresenceGuard': Node('ContractPresenceGuard',
+                run=agents['ContractPresenceGuard'].run,
+                can_run=agents['ContractPresenceGuard'].can_run,
+                repeatable=True),
+
+            # NEW: resolve "A or B" stacks
+            'StackResolverAgent': Node('StackResolverAgent',
+                run=agents['StackResolverAgent'].run,
+                can_run=agents['StackResolverAgent'].can_run,
+                repeatable=True),
 
             'ArchitectureAgent': Node('ArchitectureAgent',
                 run=agents['ArchitectureAgent'].run,
