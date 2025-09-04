@@ -1,6 +1,9 @@
 # TDL_V3 - Old/unused files moved here
 TDL_V3/
 
+# last backup - local backup folder
+last backup/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -173,3 +176,6 @@ docs_oral/
 presentation/
 *.pptx
 enhanced-Create-a-FastAPI-blo/
+.TDL_V3/
+TDL_V3
+last backup/

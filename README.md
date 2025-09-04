@@ -501,6 +501,42 @@ docker-compose up
 
 ---
 
+## ⚡️ Fonctionnement Réel & Configuration Obligatoire
+
+### Fichiers principaux à utiliser
+
+- **Interface web** : `webapp/ui_flask_v3/app_agentic.py` (lance le serveur Flask, monitoring en temps réel, téléchargement ZIP)
+- **Génération CLI/test** : `simple_agentic_graph.py` (pipeline agentique simple, utile pour debug et tests)
+
+### Variable d'environnement obligatoire
+
+- **AGENTFORGE_LLM** doit être positionnée sur `ollama` pour activer les LLMs réels (par défaut, c'est `mock` et rien ne sera généré par IA)
+
+```powershell
+# Sous PowerShell (Windows)
+$env:AGENTFORGE_LLM = "ollama"
+python webapp/ui_flask_v3/app_agentic.py
+```
+
+Si la variable n'est pas positionnée, le système fonctionne en mode "mock" (aucune génération intelligente, juste des placeholders).
+
+### Résumé du workflow réel
+
+1. **Lancement** : Démarrez `app_agentic.py` (web) ou `simple_agentic_graph.py` (CLI)
+2. **Prompt utilisateur** : Saisissez la description du projet
+3. **Pipeline agentique** :
+    - 4 agents spécialisés (architecture, dev, QA, mémoire)
+    - Collaboration réelle entre agents (vote, review, correction)
+    - Utilisation des LLMs via Ollama (si bien configuré)
+4. **Génération** : Structure de projet, code Python, README, requirements.txt
+5. **Téléchargement** : ZIP du projet via l'interface web
+
+**Attention :**
+- Pas de génération Docker, tests auto, ou scripts avancés pour l'instant (voir roadmap)
+- Le README a été nettoyé pour ne plus promettre de fonctionnalités non livrées
+
+---
+
 ## � **Fonctionnalités Actuelles (V1)**
 
 ### **🤖 Architecture Multi-Agents Réelle**
@@ -750,9 +786,9 @@ Preview montre:
 **AgentForge V1 livre déjà une valeur unique :**
 
 ### **🎯 Valeur Immédiate:**
-- **Génération ultra-rapide** (5-10 secondes vs 2-3 jours manuels)
+- **Génération ultra-rapide** (2-3 minutes vs 2-3 jours manuels)
 - **Qualité industrielle** dès la première génération  
-- **Stack complète** avec Docker, tests, CI/CD inclus
+- **Stack complète** avec Docker, tests, CI/CD à venir
 - **Cohérence garantie** entre tous les fichiers
 
 ### **🧠 Intelligence Technique:**

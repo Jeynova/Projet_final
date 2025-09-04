@@ -41,6 +41,12 @@ class LLMClient:
                     "prompt": f"{system_prompt}\n\n{user_prompt}\nRéponds en JSON valide uniquement.",
                     "format": "json",
                     "stream": False,
+                    "options": {
+                        "num_predict": 1024,  # Longer responses for JSON
+                        "temperature": 0.3,   # More focused for structured output
+                        "top_p": 0.9,
+                        "repeat_penalty": 1.1
+                    }
                 }
                 print(f"🚀 DEBUG Ollama: Envoi requête...")
                 r = requests.post(f"{base}/api/generate", json=payload, timeout=120)
@@ -83,11 +89,19 @@ class LLMClient:
             try:
                 import requests
                 base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                model = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+                # Use preferred model if specified, otherwise fall back to env var
+                model = self.preferred_model or os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+                print(f"🔧 {self.preferred_model or 'DEFAULT'}: using model {model}")
                 payload = {
                     "model": model,
                     "prompt": f"{system_prompt}\n\n{user_prompt}",
                     "stream": False,
+                    "options": {
+                        "num_predict": 2048,  # Force longer responses
+                        "temperature": 0.7,   # More creative
+                        "top_p": 0.9,
+                        "repeat_penalty": 1.1
+                    }
                 }
                 r = requests.post(f"{base}/api/generate", json=payload, timeout=120)
                 r.raise_for_status()
