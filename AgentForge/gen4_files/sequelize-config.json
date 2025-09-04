@@ -1,1 +1,0 @@
-{'username': 'your_username', 'password': 'your_password', 'database': 'your_dbname', 'host': '127.0.0.1', 'dialect': 'postgres'}

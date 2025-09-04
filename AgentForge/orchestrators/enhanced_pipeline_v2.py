@@ -19,12 +19,17 @@ class EnhancedPipelineV2:
     """
     
     def __init__(self, rag_store=None, save_to_folder="gen2_files", 
-                 max_iterations=3, target_score=7.0):
+                 max_iterations=3, target_score=7.0, demo_mode=False):
+        """
+        Enhanced Pipeline V2 with optional demo mode for faster processing
+        demo_mode: Use single-LLM team simulation for demonstrations
+        """
         self.learning_memory = LearningMemoryAgent(rag_store)
         self.save_folder = save_to_folder
-        self.team_debate = OptimizedTeamDebate()
+        self.team_debate = OptimizedTeamDebate(demo_mode=demo_mode)
         self.max_iterations = max_iterations
         self.target_score = target_score
+        self.demo_mode = demo_mode
         
         self.agents = [
             self.learning_memory,
@@ -36,7 +41,10 @@ class EnhancedPipelineV2:
         ]
         
         print("🚀 Enhanced Super-LLM Pipeline V2 initialized:")
-        print("   🎭 Optimized team debate (multi-model)")
+        if demo_mode:
+            print("   🎭 DEMO MODE: Simulation accélérée de l'équipe")
+        else:
+            print("   🎭 Optimized team debate (multi-model)")
         print("   🏗️ Progressive code generation")
         print("   ✅ Component-wise validation")
         print("   🔄 Iterative refinement until acceptable results")
@@ -210,7 +218,13 @@ class EnhancedPipelineV2:
         
         # Phase 6: Final Validation
         print("🔄 Phase 6: Final System Validation")
-        validate_agent = ValidateAgent()
+        try:
+            from agents.product.smart_validator import SmartValidator
+            validate_agent = SmartValidator()
+        except ImportError:
+            from agents.product.validate import ValidateAgent
+            validate_agent = ValidateAgent()
+            
         if validate_agent.can_run(state):
             result = validate_agent.run(state)
             if result:

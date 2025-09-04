@@ -8,7 +8,13 @@ class OptimizedTeamDebate:
     and reduces unnecessary parallel calls to the same model
     """
     
-    def __init__(self):
+    def __init__(self, demo_mode=False):
+        """
+        Initialize optimized team debate
+        demo_mode: Use single LLM call for faster demo processing
+        """
+        self.demo_mode = demo_mode
+        
         # Assign different models to different roles for diversity
         self.role_models = {
             "PM": "mistral:7b",           # Good for reasoning and planning
@@ -28,8 +34,11 @@ class OptimizedTeamDebate:
 
     def run_smart_debate(self, prompt: str, context: str) -> Dict[str, Any]:
         """
-        Run optimized debate with different models for different perspectives
+        Run optimized debate with different models or demo mode
         """
+        if self.demo_mode:
+            return self._run_demo_mode(prompt, context)
+        
         print("🎭 Starting optimized team debate with specialized models...")
         
         proposals = {}
@@ -117,6 +126,62 @@ Return JSON:
             "proposals": proposals,
             "final_decision": final_decision,
             "process": "optimized_multi_model_debate"
+        }
+    
+    def _run_demo_mode(self, prompt: str, context: str) -> Dict[str, Any]:
+        """Fast demo mode with single LLM call simulating entire team"""
+        print("🎭 DEMO MODE: Simulation accélérée de l'équipe technique")
+        
+        try:
+            client = LLMClient()
+            demo_prompt = f"""SIMULATION ÉQUIPE TECHNIQUE COMPLÈTE
+
+PROJET: {prompt}
+CONTEXTE: {context}
+
+Simule les 5 rôles suivants et leurs recommandations de stack:
+
+1. PROJECT MANAGER: Focus timeline, budget, risques
+2. LEAD DEVELOPER: Focus implémentation, maintenabilité, performance
+3. PRODUCT OWNER: Focus UX, fonctionnalités, business value  
+4. TECH CONSULTANT: Focus best practices, architectures éprouvées
+5. SYSTEM ARCHITECT: Focus scalabilité, sécurité, intégration
+
+Retourne le consensus final en JSON:
+{{
+  "backend": {{"name": "technologie choisie", "reasoning": "justification détaillée"}},
+  "frontend": {{"name": "technologie choisie", "reasoning": "justification détaillée"}},
+  "database": {{"name": "technologie choisie", "reasoning": "justification détaillée"}}, 
+  "deployment": {{"name": "technologie choisie", "reasoning": "justification détaillée"}},
+  "team_consensus": "synthèse des points clés et compromis de l'équipe"
+}}"""
+
+            result = client.extract_json(
+                "Tu es une équipe technique complète avec expertise variée",
+                demo_prompt
+            )
+            
+            if result:
+                return {
+                    "proposals": {"DEMO_TEAM": result},
+                    "final_decision": result,
+                    "process": "demo_mode_simulation"
+                }
+        
+        except Exception as e:
+            print(f"❌ Demo mode failed: {e}")
+        
+        # Fallback
+        return {
+            "proposals": {},
+            "final_decision": {
+                "backend": {"name": "Node.js", "reasoning": "Stack moderne et populaire"},
+                "frontend": {"name": "React", "reasoning": "Interface utilisateur moderne"},
+                "database": {"name": "PostgreSQL", "reasoning": "Base de données robuste"},
+                "deployment": {"name": "Docker", "reasoning": "Containerisation standard"},
+                "team_consensus": "Configuration par défaut - demo mode"
+            },
+            "process": "demo_mode_fallback"
         }
 
 # Factory function for backward compatibility
