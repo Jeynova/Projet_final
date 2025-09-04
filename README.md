@@ -414,18 +414,21 @@ Temps AgentForge: 30 minutes + 2h validation
 ## 🏗️ **Architecture**
 
 ### **📁 Structure Projet:**
+
 ```
-AgentForge/
-├── core/
-│   ├── llm_client.py         # 🤖 Interface LLM (optionnel)
-│   ├── spec_extractor.py     # 🧠 Parsing intelligent
-│   ├── specs.py              # 📋 Classes de données
-│   └── mappings.py           # 🗂️ Synonymes et patterns
-├── orchestrator/             # 🎯 Orchestration génération
-├── templates/                # � Templates de projets
-├── webapp/ui_flask_v3/       # 🌐 Interface web
-├── local_output/             # 💾 Projets générés (gitignored)
-└── scripts/                  # 🚀 Scripts d'automatisation
+Projet_final/
+├── AgentForge/
+│   ├── core/
+│   ├── orchestrators/
+│   ├── agents/
+│   ├── webapp/ui_flask_v3/
+│   ├── scripts/
+│   ├── templates/
+│   └── ... (autres dossiers/fichiers)
+├── docs_oral_backup/
+├── Projekt_final/
+├── ProjetForge/
+└── README.md
 ```
 
 ### **🔧 Stack Technique:**
