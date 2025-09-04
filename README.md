@@ -501,32 +501,63 @@ docker-compose up
 
 ---
 
-## 🚧 **Fonctionnalités Avancées**
+## � **Fonctionnalités Actuelles (V1)**
 
-### **� Intelligence de Parsing**
-
-#### **🔍 Reconnaissance Contextuelle**
-```python
-# Comprend différentes syntaxes
-"users avec email et password" 
-"User(email:string, password:string)"
-"table users: email varchar unique, password_hash text"
-
-# Toutes génèrent le même modèle optimisé
-class User(Base):
-    email = Column(String, unique=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+### **🤖 Architecture Multi-Agents Réelle**
+```bash
+4 Agents Spécialisés Fonctionnels:
+├── 🏗️ ArchAgent (mistral:7b) → Décisions architecture & stack tech
+├── 👨‍💻 DevAgent (codellama:7b) → Génération code structuré
+├── 🔍 QAAgent (qwen2.5-coder:7b) → Review & validation code
+└── 🧠 MemoryAgent (RAG+embeddings) → Apprentissage patterns
 ```
 
-#### **📊 Inférence de Relations**
+### **💡 Intelligence Collaborative Prouvée**
 ```python
-Input: "posts et comments"
-Inférence automatique:
-├── Post peut avoir plusieurs Comments (1-to-Many)
-├── Comment appartient à un Post (Foreign Key)
-├── Génération des relations SQLAlchemy
-└── Routes CRUD respectant les relations
+# Processus de décision démocratique réel
+tech_votes = {
+    'fastapi': {'ArchAgent': 8, 'DevAgent': 7, 'QAAgent': 9},
+    'flask': {'ArchAgent': 6, 'DevAgent': 8, 'QAAgent': 7},
+    'django': {'ArchAgent': 7, 'DevAgent': 6, 'QAAgent': 8}
+}
+# → Consensus FastAPI (score: 8.0)
 ```
+
+### **📁 Génération de Projets Structurés**
+```bash
+Structure générée actuellement:
+project_name/
+├── 📄 main.py              # Code principal fonctionnel
+├── 📄 models.py            # Classes métier cohérentes  
+├── 📄 requirements.txt     # Dépendances exactes
+├── 📄 README.md            # Instructions de démarrage
+└── 📂 local_output/        # Dossier de sortie local
+```
+
+### **🧠 Système RAG d'Apprentissage**
+```python
+# Mémoire technique opérationnelle
+similarity = cosine_similarity(new_prompt_embedding, stored_patterns)
+if similarity > 0.75:
+    print("🧠 Pattern similaire trouvé, réutilisation intelligente...")
+    return cached_solution.adapt_to(new_context)
+```
+
+### **🌐 Interface Web Live**
+```bash
+Dashboard temps réel fonctionnel:
+├── 🎯 Suivi agents via WebSocket
+├── 📊 Timeline décisions en direct  
+├── 📥 Download ZIP immédiat
+└── 💬 Feed événements temps réel
+```
+
+## 🎯 **Roadmap V2 (À venir)**
+
+### **🐳 Containerisation (Plannifié)**
+- Docker-compose auto-généré
+- Scripts setup.sh / dev.sh / test.sh
+- Multi-services (API + DB + Redis)
 
 #### **🎯 Types Intelligents**
 ```python
@@ -626,45 +657,37 @@ scripts/
 
 ---
 
-## ✅ **Validation et Contrôle**
+## ✅ **Validation Actuelle**
 
-### **🔍 Validation Automatique**
-
-#### **✅ Cohérence Inter-Fichiers**
+### **🔍 Validation Multi-Agents**
 ```python
-Vérifications automatiques:
-├── ✓ Modèles SQLAlchemy ↔ Schémas Pydantic
-├── ✓ Routes FastAPI ↔ Tests unitaires
-├── ✓ Variables d'environnement ↔ Configuration
-├── ✓ Docker compose ↔ Requirements.txt
-└── ✓ Documentation ↔ Endpoints générés
+# QAAgent review réel du code généré
+qa_feedback = {
+    'score': 7.8,
+    'issues': ['Missing error handling in /users endpoint'],
+    'suggestions': ['Add try/catch for database errors'],
+    'approved': False  # Déclenche correction automatique
+}
 ```
 
-#### **🛡️ Standards de Qualité**
+### **🛡️ Standards Appliqués (Niveau de Base)**
 ```python
-Code généré respecte automatiquement:
-├── PEP 8: Style Python standard
-├── Type hints: Annotations complètes  
-├── Docstrings: Documentation inline
-├── Error handling: Gestion d'erreurs appropriée
-├── Security: Validation inputs, hash passwords
-└── Performance: Requêtes DB optimisées
+Code généré inclut actuellement:
+├── ✅ Structure MVC cohérente
+├── ✅ Imports correctement organisés  
+├── ✅ Classes avec méthodes basiques
+├── ⚠️ Gestion d'erreurs basique (à améliorer)
+├── ⚠️ Documentation minimale (README auto)
+└── ❌ Tests automatisés (roadmap V2)
 ```
 
-#### **🧪 Tests Automatisés**
-```python
-# Tests générés pour chaque endpoint
-def test_create_user(test_client):
-    response = test_client.post("/users/", json={
-        "email": "test@example.com",
-        "password": "securepass123"
-    })
-    assert response.status_code == 201
-    assert "id" in response.json()
-    assert response.json()["email"] == "test@example.com"
-
-def test_user_email_unique(test_client):
-    # Test contrainte unicité automatiquement généré
+### **🎯 Cohérence Garantie**
+```bash
+Validation inter-agents:
+├── ArchAgent définit structure → DevAgent respecte
+├── DevAgent génère code → QAAgent valide
+├── Corrections appliquées si score < 8.0
+└── Consensus requis avant finalisation
 ```
 
 ### **🎛️ Contrôle Utilisateur**
@@ -702,37 +725,29 @@ Preview montre:
 └── Taille approximative du projet
 ```
 
-### **🔧 Extensibilité**
+---
 
-#### **📝 Templates Personnalisés**
-```python
-# Créer son propre template
-templates/mon_template/
-├── src/
-│   ├── models/{{entity.name}}.py.j2
-│   ├── routes/{{entity.name}}.py.j2  
-│   └── schemas/{{entity.name}}.py.j2
-├── tests/
-│   └── test_{{entity.name}}.py.j2
-├── docker-compose.yml.j2
-└── README.md.j2
-```
+## 📊 **État Actuel vs Vision Future**
 
-#### **🧩 Plugins et Extensions**
-```python
-# Système de plugins pour fonctionnalités spécialisées  
-plugins/
-├── security_plugin.py      # Standards sécurité avancés
-├── monitoring_plugin.py    # Métriques et observabilité
-├── cloud_plugin.py         # Déploiement cloud (AWS/GCP)
-└── graphql_plugin.py       # Support GraphQL
-```
+### **✅ Actuellement Fonctionnel (V1):**
+- 🤖 4 agents collaboratifs réels avec LLMs spécialisés
+- 🧠 Système RAG d'apprentissage opérationnel  
+- 🌐 Interface web avec monitoring temps réel
+- 📁 Génération projets structurés immédiatement exécutables
+- 🔒 Self-hosted avec Ollama (privacité garantie)
+
+### **🚧 Roadmap V2 (3-6 mois):**
+- 🐳 Docker-compose automatique + scripts de déploiement
+- 🧪 Génération tests automatisés (pytest, unittest)
+- 🔧 Templates personnalisables (Jinja2)
+- 🧩 Système de plugins modulaire
+- ⚡ Support multi-frameworks (Django, Flask, FastAPI)
 
 ---
 
-## 📊 **Conclusion**
+## 🎯 **Conclusion**
 
-AgentForge révolutionne la génération de boilerplates en apportant:
+**AgentForge V1 livre déjà une valeur unique :**
 
 ### **🎯 Valeur Immédiate:**
 - **Génération ultra-rapide** (5-10 secondes vs 2-3 jours manuels)
