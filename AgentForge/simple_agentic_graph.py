@@ -1,19 +1,283 @@
 """
-SIMPLE AGENTIC GRAPH - MVP with real agent behavior
+SIMPLE AGENTIC GRAPH - MVP with real agent behavior + MEMORY AGENT
 
-This adds MINIMAL agentic features to the working fast graph:
-1. Multiple agents making independent decisions
-2. Agents review and improve each other's work  
-3. Self-correction and iteration
-4. Dynamic decision-making
-
-KEEPS IT SIMPLE AND WORKING!
 """
 
 from typing import Dict, Any, List
 import json
 from pathlib import Path
 import random
+import hashlib
+import sqlite3
+from datetime import datetime
+
+
+import hashlib
+import sqlite3
+from datetime import datetime
+import numpy as np
+from typing import Optional
+import requests
+import time
+
+
+import hashlib
+import sqlite3
+from datetime import datetime
+import numpy as np
+from typing import Optional
+import requests
+import time
+import json
+import pickle
+
+
+class MemoryAgent:
+    """
+    Memory Agent with Simple Vector RAG - Stores successful project patterns using embeddings
+    Uses Ollama embeddings with optimized SQLite vector storage
+    """
+    
+    def __init__(self, db_path: str = "memory_rag.db", min_score: float = 7.0):
+        self.db_path = db_path
+        self.min_score = min_score
+        self.embedding_model = "nomic-embed-text"
+        self.ollama_base = "http://localhost:11434"
+        self.vector_cache = {}  # In-memory cache for faster similarity search
+        self.init_database()
+        self._load_vector_cache()
+        print(f"🧠 MemoryAgent: Optimized SQLite RAG with vector cache")
+        print(f"🎯 Learning from projects with score >= {min_score}")
+    
+    def init_database(self):
+        """Initialize optimized SQLite database"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS project_memory (
+                    id INTEGER PRIMARY KEY,
+                    prompt_hash TEXT UNIQUE,
+                    prompt_text TEXT,
+                    tech_stack TEXT,
+                    file_patterns TEXT,
+                    score REAL,
+                    files_count INTEGER,
+                    created_at TIMESTAMP,
+                    usage_count INTEGER DEFAULT 0
+                )
+            """)
+            
+            # Separate table for embeddings (more efficient)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS embeddings (
+                    prompt_hash TEXT PRIMARY KEY,
+                    embedding_data BLOB,
+                    embedding_norm REAL,
+                    FOREIGN KEY (prompt_hash) REFERENCES project_memory (prompt_hash)
+                )
+            """)
+            
+            # Index for faster lookups
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_score ON project_memory (score DESC)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_usage ON project_memory (usage_count)")
+    
+    def _load_vector_cache(self):
+        """Load embeddings into memory for fast similarity search"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT e.prompt_hash, e.embedding_data, p.score, p.usage_count
+                FROM embeddings e
+                JOIN project_memory p ON e.prompt_hash = p.prompt_hash
+                ORDER BY p.score DESC
+                LIMIT 100
+            """)
+            
+            for prompt_hash, embedding_data, score, usage_count in cursor.fetchall():
+                try:
+                    embedding = pickle.loads(embedding_data)
+                    self.vector_cache[prompt_hash] = {
+                        'embedding': embedding,
+                        'score': score,
+                        'usage_count': usage_count
+                    }
+                except:
+                    pass
+        
+        print(f"🧠 Loaded {len(self.vector_cache)} embeddings into cache")
+    
+    def get_embedding(self, text: str) -> Optional[np.ndarray]:
+        """Get embedding from Ollama with caching"""
+        try:
+            response = requests.post(
+                f"{self.ollama_base}/api/embeddings",
+                json={
+                    "model": self.embedding_model,
+                    "prompt": text
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                embedding = response.json().get("embedding", [])
+                if embedding:
+                    return np.array(embedding, dtype=np.float32)
+                    
+        except Exception as e:
+            print(f"⚠️ Embedding failed: {e}")
+        
+        return None
+    
+    def cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+        """Optimized cosine similarity"""
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    
+    def store_success(self, prompt: str, tech_stack: Dict, files: Dict[str, str], score: float):
+        """Store with optimized embedding storage"""
+        if score < self.min_score:
+            return
+        
+        prompt_hash = hashlib.md5(prompt.lower().strip().encode()).hexdigest()
+        file_patterns = list(files.keys()) if files else []
+        
+        # Get embedding
+        prompt_embedding = self.get_embedding(prompt)
+        
+        with sqlite3.connect(self.db_path) as conn:
+            # Store project data
+            conn.execute("""
+                INSERT OR REPLACE INTO project_memory 
+                (prompt_hash, prompt_text, tech_stack, file_patterns, score, files_count, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                prompt_hash,
+                prompt[:500],
+                json.dumps(tech_stack),
+                json.dumps(file_patterns),
+                score,
+                len(files),
+                datetime.now().isoformat()
+            ))
+            
+            # Store embedding separately
+            if prompt_embedding is not None:
+                embedding_data = pickle.dumps(prompt_embedding)
+                embedding_norm = float(np.linalg.norm(prompt_embedding))
+                
+                conn.execute("""
+                    INSERT OR REPLACE INTO embeddings 
+                    (prompt_hash, embedding_data, embedding_norm)
+                    VALUES (?, ?, ?)
+                """, (prompt_hash, embedding_data, embedding_norm))
+                
+                # Update cache
+                self.vector_cache[prompt_hash] = {
+                    'embedding': prompt_embedding,
+                    'score': score,
+                    'usage_count': 0
+                }
+        
+        print(f"🧠 MemoryAgent: Stored with embedding (score: {score})")
+    
+    def find_similar_project(self, prompt: str, similarity_threshold: float = 0.7) -> Dict[str, Any]:
+        """Fast similarity search using cached embeddings"""
+        
+        # Get prompt embedding
+        prompt_embedding = self.get_embedding(prompt)
+        if prompt_embedding is None:
+            return self._fallback_exact_match(prompt)
+        
+        best_match = None
+        best_similarity = 0.0
+        best_hash = None
+        
+        # Search in cache (much faster than database)
+        for prompt_hash, data in self.vector_cache.items():
+            similarity = self.cosine_similarity(prompt_embedding, data['embedding'])
+            
+            if similarity > best_similarity and similarity >= similarity_threshold:
+                best_similarity = similarity
+                best_hash = prompt_hash
+                best_match = data
+        
+        if best_match and best_hash:
+            # Get full project data from database
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.execute("""
+                    SELECT prompt_text, tech_stack, file_patterns, score
+                    FROM project_memory 
+                    WHERE prompt_hash = ?
+                """, (best_hash,))
+                
+                result = cursor.fetchone()
+                if result:
+                    prompt_text, tech_stack, file_patterns, score = result
+                    
+                    # Update usage count
+                    conn.execute("""
+                        UPDATE project_memory 
+                        SET usage_count = usage_count + 1 
+                        WHERE prompt_hash = ?
+                    """, (best_hash,))
+                    
+                    print(f"🧠 MemoryAgent: Found similar! Similarity: {best_similarity:.3f}")
+                    print(f"   📝 Original: {prompt_text[:50]}...")
+                    
+                    return {
+                        'found': True,
+                        'tech_stack': json.loads(tech_stack),
+                        'file_patterns': json.loads(file_patterns),
+                        'confidence': best_similarity,
+                        'source': 'vector_similarity',
+                        'original_score': score
+                    }
+        
+        print(f"🧠 MemoryAgent: No similar projects found (threshold: {similarity_threshold})")
+        return {'found': False}
+    
+    def _fallback_exact_match(self, prompt: str) -> Dict[str, Any]:
+        """Fallback to exact text matching"""
+        prompt_hash = hashlib.md5(prompt.lower().strip().encode()).hexdigest()
+        
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT tech_stack, file_patterns, score
+                FROM project_memory 
+                WHERE prompt_hash = ?
+            """, (prompt_hash,))
+            
+            result = cursor.fetchone()
+            if result:
+                tech_stack, file_patterns, score = result
+                print(f"🧠 MemoryAgent: Found exact match (score: {score})")
+                
+                return {
+                    'found': True,
+                    'tech_stack': json.loads(tech_stack),
+                    'file_patterns': json.loads(file_patterns),
+                    'confidence': 0.95,
+                    'source': 'exact_match'
+                }
+        
+        return {'found': False}
+    
+    def get_memory_stats(self) -> Dict[str, Any]:
+        """Get memory statistics"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute("""
+                SELECT COUNT(*), AVG(score), SUM(usage_count)
+                FROM project_memory
+            """)
+            count, avg_score, total_usage = cursor.fetchone()
+            
+            cursor = conn.execute("SELECT COUNT(*) FROM embeddings")
+            embeddings_count = cursor.fetchone()[0]
+            
+            return {
+                'total_patterns': count or 0,
+                'with_embeddings': embeddings_count or 0,
+                'cached_vectors': len(self.vector_cache),
+                'avg_score': round(avg_score or 0, 2),
+                'total_reuses': total_usage or 0
+            }
 
 
 class SimpleAgent:
@@ -164,11 +428,14 @@ Return ONLY the improved code:"""
 
 class SimpleAgenticGraph:
     """
-    Simple Agentic Graph - Adds minimal agent behavior to working fast graph
+    Simple Agentic Graph - Adds minimal agent behavior to working fast graph + Memory Agent
     """
     
-    def __init__(self, save_folder: str = "agentic_generated"):
-        self.save_folder = save_folder
+    def __init__(self, save_folder: str = "local_output"):
+        # Use timestamped folder for each run
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.save_folder = f"{save_folder}/agentic_{timestamp}"
         
         # Create 3 simple agents with different expertise
         self.agents = [
@@ -177,11 +444,15 @@ class SimpleAgenticGraph:
             SimpleAgent("QAAgent", "Quality Assurance", "qwen2.5-coder:7b")
         ]
         
+        # Add Memory Agent
+        self.memory_agent = MemoryAgent()
+        
         print("🤖 SIMPLE AGENTIC GRAPH:")
         print("   🎯 3 agents making independent decisions")
         print("   📝 Agents review each other's work")
         print("   ✨ Self-correction and improvement")
         print("   🎲 Dynamic decision-making")
+        print("   🧠 Memory Agent with RAG learning")
         print(f"   💾 Output: {save_folder}/")
     
     def run_agentic(self, prompt: str, project_name: str = "AgenticProject") -> Dict[str, Any]:
@@ -223,6 +494,18 @@ class SimpleAgenticGraph:
             print(f"💾 Saved: {saved_count}")
             print(f"📝 Reviews: {len(reviews)}")
             
+            # Calculate a simple score based on files and reviews
+            base_score = min(10, len(improved_files) + len(reviews) * 0.5)
+            
+            # Store successful pattern in memory if score is good
+            if base_score >= 7.0:
+                self.memory_agent.store_success(prompt, tech_stack, improved_files, base_score)
+                print(f"🧠 Pattern stored in memory (score: {base_score})")
+            
+            # Get memory stats
+            memory_stats = self.memory_agent.get_memory_stats()
+            print(f"🧠 Memory: {memory_stats['total_patterns']} patterns, {memory_stats['total_reuses']} reuses")
+            
             return {
                 'files': improved_files,
                 'files_count': len(improved_files),
@@ -230,6 +513,8 @@ class SimpleAgenticGraph:
                 'reviews': reviews,
                 'tech_stack': tech_stack,
                 'success': True,
+                'score': base_score,
+                'memory_stats': memory_stats,
                 'agent_stats': self._get_agent_stats()
             }
             
@@ -238,8 +523,16 @@ class SimpleAgenticGraph:
             return {'success': False, 'error': str(e)}
     
     def _agent_tech_decisions(self, prompt: str) -> Dict[str, Any]:
-        """Agents make independent tech stack decisions"""
+        """Agents make independent tech stack decisions (with memory assist)"""
         
+        # First check memory for similar successful projects
+        memory_result = self.memory_agent.find_similar_project(prompt)
+        
+        if memory_result['found'] and memory_result['confidence'] > 0.7:
+            print(f"🧠 Using memory: {memory_result['source']} (confidence: {memory_result['confidence']:.2f})")
+            return memory_result['tech_stack']
+        
+        # If no good memory match, use normal agent decisions
         tech_options = [
             "Node.js + Express",
             "Python + FastAPI", 
@@ -257,6 +550,8 @@ class SimpleAgenticGraph:
         # Each agent decides independently
         backend_votes = {}
         db_votes = {}
+        
+        print("🤖 Memory couldn't help enough, asking agents...")
         
         for agent in self.agents:
             backend = agent.make_decision({'prompt': prompt}, tech_options)
@@ -279,10 +574,20 @@ class SimpleAgenticGraph:
         return tech_stack
     
     def _agent_architecture_decisions(self, prompt: str, tech_stack: Dict[str, Any]) -> List[str]:
-        """Agents decide architecture independently"""
+        """Agents decide architecture independently (with memory assist)"""
         
         base_files = ['server.js', 'package.json', '.env.example']
         
+        # Check if memory has file patterns for similar projects
+        memory_result = self.memory_agent.find_similar_project(prompt)
+        
+        if memory_result['found'] and memory_result['confidence'] > 0.6:
+            memory_files = memory_result.get('file_patterns', [])
+            if memory_files and len(memory_files) > 3:
+                print(f"🧠 Using memory file patterns: {len(memory_files)} files")
+                return base_files + [f for f in memory_files if f not in base_files]
+        
+        # Normal agent decision process
         optional_files = [
             'routes/auth.js',
             'routes/tasks.js', 
@@ -296,6 +601,8 @@ class SimpleAgenticGraph:
         
         # Each agent votes on optional files
         file_votes = {}
+        
+        print("🤖 Memory patterns insufficient, asking agents for architecture...")
         
         for agent in self.agents:
             # Agent chooses 3-5 optional files

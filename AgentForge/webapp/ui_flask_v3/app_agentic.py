@@ -1,11 +1,6 @@
 """
 Flask Frontend for AgentForge - SIMPLE AGENTIC EDITION
-Features:
-- Simple Agentic Graph with 3 real agents
-- Real-time agent decision monitoring
-- Agent peer review system
-- Live workflow visualization
-- ZIP download of generated projects
+
 """
 import os
 import sys
@@ -43,50 +38,143 @@ class AgentMonitor:
         self.session_id = session_id
         self.events = []
         self.agents_stats = {}
+        self.start_time = datetime.now()
+        self.files_created = 0
+        self.total_lines = 0
+        self.key_decisions = []
+        self.critical_reviews = []
     
-    def log_event(self, event_type, message, agent_name=None):
+    def log_event(self, event_type, message, agent_name=None, extra_data=None):
         """Log an event and broadcast to frontend"""
         event = {
             'type': event_type,
             'message': message,
             'agent': agent_name,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': datetime.now().isoformat(),
+            'extra_data': extra_data or {}
         }
         self.events.append(event)
         
-        # Broadcast to frontend
+        # Broadcast to frontend with session room
         socketio.emit('agent_event', event, room=self.session_id)
+        print(f"📡 Broadcasting to session {self.session_id}: {event_type} - {message}")
         
         # Update agent stats
         if agent_name and agent_name not in self.agents_stats:
             self.agents_stats[agent_name] = {
                 'decisions': 0,
                 'reviews': 0,
-                'improvements': 0
+                'improvements': 0,
+                'files_created': 0,
+                'lines_written': 0
             }
     
     def log_decision(self, agent_name, decision):
         """Log agent decision"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
+        
         self.agents_stats[agent_name]['decisions'] += 1
-        self.log_event('decision', f"{agent_name} chose: {decision}", agent_name)
+        self.key_decisions.append({'agent': agent_name, 'decision': decision, 'time': datetime.now()})
+        self.log_event('decision', f"🤔 {agent_name} chose: {decision}", agent_name)
     
     def log_review(self, agent_name, filename, score):
         """Log agent review"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
+            
         self.agents_stats[agent_name]['reviews'] += 1
-        self.log_event('review', f"{agent_name} reviewed {filename} -> {score}/5", agent_name)
+        if score <= 3:  # Critical review
+            self.critical_reviews.append({'agent': agent_name, 'file': filename, 'score': score, 'time': datetime.now()})
+        
+        self.log_event('review', f"🔍 {agent_name} reviewed {filename} → {score}/5", agent_name)
     
     def log_improvement(self, agent_name, filename, improvement):
         """Log agent improvement"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
+            
         self.agents_stats[agent_name]['improvements'] += 1
-        self.log_event('improvement', f"{agent_name} improved {filename}: {improvement}", agent_name)
+        self.log_event('improvement', f"⚡ {agent_name} improved {filename}: {improvement}", agent_name)
+    
+    def log_file_creation(self, agent_name, filename, lines_count):
+        """Log file creation"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
+            
+        self.agents_stats[agent_name]['files_created'] += 1
+        self.agents_stats[agent_name]['lines_written'] += lines_count
+        self.files_created += 1
+        self.total_lines += lines_count
+        self.log_event('file_created', f"📄 {agent_name} created {filename} ({lines_count} lines)", agent_name)
+    
+    def log_memory_activity(self, activity_type, details):
+        """Log MemoryAgent specific activities"""
+        if 'MemoryAgent' not in self.agents_stats:
+            self.agents_stats['MemoryAgent'] = {
+                'patterns_learned': 0,
+                'patterns_reused': 0, 
+                'similarity_matches': 0,
+                'embeddings_created': 0,
+                'cache_hits': 0
+            }
+        
+        if activity_type == 'pattern_stored':
+            self.agents_stats['MemoryAgent']['patterns_learned'] += 1
+            self.log_event('memory', f"🧠 MemoryAgent learned new pattern (score: {details.get('score', 0)})", 'MemoryAgent')
+            
+        elif activity_type == 'pattern_reused':
+            self.agents_stats['MemoryAgent']['patterns_reused'] += 1
+            confidence = details.get('confidence', 0)
+            self.log_event('memory', f"🧠 MemoryAgent reused pattern (confidence: {confidence:.2f})", 'MemoryAgent')
+            
+        elif activity_type == 'similarity_found':
+            self.agents_stats['MemoryAgent']['similarity_matches'] += 1
+            
+        elif activity_type == 'embedding_created':
+            self.agents_stats['MemoryAgent']['embeddings_created'] += 1
+    
+    def get_summary_stats(self):
+        """Get comprehensive summary statistics"""
+        duration = datetime.now() - self.start_time
+        
+        return {
+            'duration_seconds': duration.total_seconds(),
+            'duration_formatted': str(duration).split('.')[0],  # Remove microseconds
+            'total_events': len(self.events),
+            'files_created': self.files_created,
+            'total_lines': self.total_lines,
+            'agents_stats': self.agents_stats,
+            'key_decisions': [
+                {
+                    'agent': kd['agent'], 
+                    'decision': kd['decision'][:50] + ('...' if len(kd['decision']) > 50 else ''),
+                    'time': kd['time'].strftime('%H:%M:%S')
+                } 
+                for kd in self.key_decisions[-5:]  # Last 5 decisions
+            ],
+            'critical_reviews': [
+                {
+                    'agent': cr['agent'],
+                    'file': cr['file'],
+                    'score': cr['score'],
+                    'time': cr['time'].strftime('%H:%M:%S')
+                }
+                for cr in self.critical_reviews[-3:]  # Last 3 critical reviews
+            ]
+        }
 
 
 class MonitoredAgenticGraph(SimpleAgenticGraph):
     """Agentic Graph with monitoring for Flask"""
     
-    def __init__(self, session_id, save_folder="webapp_generated"):
+    def __init__(self, session_id, save_folder="local_output"):
         self.monitor = AgentMonitor(session_id)
-        super().__init__(save_folder)
+        # Create timestamped folder for this session
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_save_path = f"{save_folder}/webapp_{timestamp}_{session_id[:8]}"
+        super().__init__(full_save_path)
         
         # Replace agent methods with monitored versions
         for agent in self.agents:
@@ -109,7 +197,8 @@ class MonitoredAgenticGraph(SimpleAgenticGraph):
         """Monitored version of review_code"""
         self.monitor.log_event('reviewing', f"{agent.name} is reviewing {filename}...", agent.name)
         review = agent.original_review_code(filename, code)
-        self.monitor.log_review(agent.name, filename, review.get('score', 0))
+        score = review.get('score', 0) if isinstance(review, dict) else 3
+        self.monitor.log_review(agent.name, filename, score)
         return review
     
     def _monitored_improve(self, agent, filename, code, reviews):
@@ -117,8 +206,9 @@ class MonitoredAgenticGraph(SimpleAgenticGraph):
         if reviews:
             self.monitor.log_event('improving', f"{agent.name} is improving {filename}...", agent.name)
             improved = agent.original_improve_code(filename, code, reviews)
-            if len(improved) > len(code):
-                self.monitor.log_improvement(agent.name, filename, f"+{len(improved) - len(code)} chars")
+            if improved and len(improved) > len(code):
+                improvement_desc = f"+{len(improved) - len(code)} chars"
+                self.monitor.log_improvement(agent.name, filename, improvement_desc)
             return improved
         return code
     
@@ -131,11 +221,28 @@ class MonitoredAgenticGraph(SimpleAgenticGraph):
             result = self.run_agentic(prompt, project_name)
             
             if result['success']:
+                # Log file creation stats
+                for filename, content in result.get('files', {}).items():
+                    lines_count = len(content.splitlines()) if content else 0
+                    # Determine which agent likely created this file
+                    if 'test' in filename.lower():
+                        agent = 'QAAgent'
+                    elif any(ext in filename for ext in ['.py', '.js', '.ts']):
+                        agent = 'DevAgent' 
+                    else:
+                        agent = 'ArchAgent'
+                    
+                    self.monitor.log_file_creation(agent, filename, lines_count)
+                
                 self.monitor.log_event('complete', f"✅ Generation Complete! {result['files_count']} files created")
                 
-                # Store final stats
+                # Store final stats including summary
                 result['agent_stats'] = self.monitor.agents_stats
                 result['events'] = self.monitor.events
+                result['summary_stats'] = self.monitor.get_summary_stats()
+                
+                # Broadcast final summary
+                socketio.emit('generation_summary', result['summary_stats'], room=self.monitor.session_id)
             else:
                 self.monitor.log_event('error', f"❌ Generation Failed: {result.get('error', 'Unknown error')}")
             
@@ -174,13 +281,13 @@ def generate_project():
     # Start generation in background thread
     def generate():
         try:
-            agentic = MonitoredAgenticGraph(session_id, f"webapp/ui_flask_v3/generated/{session_id}")
+            agentic = MonitoredAgenticGraph(session_id, "local_output")
             result = agentic.run_agentic_monitored(prompt, project_name)
             
-            # Store result
+            # Store result with local path
             active_sessions[session_id] = result
             session_outputs[session_id] = {
-                'path': f"webapp/ui_flask_v3/generated/{session_id}/{project_name}",
+                'path': agentic.save_folder,
                 'files': result.get('files', {}),
                 'project_name': project_name
             }
@@ -208,23 +315,45 @@ def download_project(session_id):
         return jsonify({'error': 'Session not found'}), 404
     
     output_info = session_outputs[session_id]
-    project_path = Path(ROOT) / output_info['path']
     project_name = output_info['project_name']
     
+    # Use the exact path stored during generation
+    project_path = Path(ROOT) / output_info['path'] / project_name
+    
+    print(f"🔍 Looking for project at: {project_path}")
+    
     if not project_path.exists():
-        return jsonify({'error': 'Project files not found'}), 404
+        # Try the path without project name subfolder
+        project_path = Path(ROOT) / output_info['path']
+        print(f"🔍 Trying alternative path: {project_path}")
+        
+        if not project_path.exists():
+            print(f"❌ Project not found at: {project_path}")
+            return jsonify({'error': f'Project files not found at {project_path}'}), 404
     
-    # Create ZIP file
-    zip_path = Path(ROOT) / f"webapp/ui_flask_v3/downloads/{session_id}_{project_name}.zip"
-    zip_path.parent.mkdir(parents=True, exist_ok=True)
+    # Create ZIP file in local downloads
+    zip_folder = Path(ROOT) / "local_output" / "downloads"
+    zip_folder.mkdir(parents=True, exist_ok=True)
+    zip_path = zip_folder / f"{session_id}_{project_name}.zip"
     
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for file_path in project_path.rglob('*'):
-            if file_path.is_file():
-                arcname = file_path.relative_to(project_path)
-                zipf.write(file_path, arcname)
+    print(f"📦 Creating ZIP: {zip_path}")
     
-    return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            file_count = 0
+            for file_path in project_path.rglob('*'):
+                if file_path.is_file():
+                    arcname = file_path.relative_to(project_path)
+                    zipf.write(file_path, arcname)
+                    print(f"   📄 Added: {arcname}")
+                    file_count += 1
+        
+        print(f"✅ ZIP created successfully: {zip_path} ({file_count} files)")
+        return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
+        
+    except Exception as e:
+        print(f"❌ ZIP creation failed: {e}")
+        return jsonify({'error': f'ZIP creation failed: {str(e)}'}), 500
 
 
 @app.route('/api/status/<session_id>')
@@ -247,19 +376,24 @@ def handle_disconnect():
 
 @socketio.on('join_session')
 def handle_join_session(data):
+    """Handle client joining a session room"""
+    from flask_socketio import join_room
     session_id = data['session_id']
-    # Join the session room for updates
-    print(f'Client joined session: {session_id}')
+    join_room(session_id)
+    print(f'✅ Client joined session room: {session_id}')
+    emit('session_joined', {'session_id': session_id})
 
 
 if __name__ == '__main__':
-    # Create necessary directories
-    (ROOT / "webapp/ui_flask_v3/generated").mkdir(parents=True, exist_ok=True)
-    (ROOT / "webapp/ui_flask_v3/downloads").mkdir(parents=True, exist_ok=True)
+    # Create necessary local directories
+    (ROOT / "local_output").mkdir(parents=True, exist_ok=True)
+    (ROOT / "local_output" / "downloads").mkdir(parents=True, exist_ok=True)
     
     print("🚀 Starting Simple Agentic Flask App...")
-    print("🤖 3 Agents: DevAgent, ArchAgent, QAAgent")
+    print("🤖 4 Agents: DevAgent, ArchAgent, QAAgent + MemoryAgent")
+    print("🧠 MemoryAgent: RAG with vector embeddings for pattern learning")
     print("📊 Real-time monitoring enabled")
+    print("📁 Local output: local_output/ (gitignored)")
     print("🔥 Ready at: http://localhost:5001")
     
     socketio.run(app, host='0.0.0.0', port=5001, debug=True)
