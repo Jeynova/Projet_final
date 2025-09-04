@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentForge v3 - Organic Intelligence Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #2d3748;
+            overflow-y: auto; /* Enable vertical scrolling */
+        }
+        
+        .game-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: calc(100vh - 40px); /* Ensure proper height */
+        }
+        
+        .game-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .header-left h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        
+        .version-toggle {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .version-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        
+        .toggle-switch {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .toggle-switch input[type="radio"] {
+            display: none;
+        }
+        
+        .toggle-switch label {
+            padding: 10px 15px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .toggle-switch label:hover {
+            background: #edf2f7;
+        }
+        
+        .toggle-switch input[type="radio"]:checked + label {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .version-name {
+            display: block;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        .version-desc {
+            display: block;
+            font-size: 12px;
+            opacity: 0.8;
+        }
+        
+        .system-stats {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 80px;
+        }
+        
+        .stat-value {
+            display: block;
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #718096;
+            margin-top: 5px;
+        }
+        
+        .action-panel {
+            margin-bottom: 30px;
+        }
+        
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        
+        .action-button {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 15px;
+            padding: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            text-decoration: none;
+            color: inherit;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+        
+        .action-button.primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .action-icon {
+            font-size: 40px;
+        }
+        
+        .action-text {
+            flex: 1;
+        }
+        
+        .action-title {
+            display: block;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .action-desc {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+        
+        .project-gallery {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+        
+        .gallery-header h2 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .gallery-controls {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .search-input, .filter-select {
+            padding: 10px 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .projects-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .project-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s;
+        }
+        
+        .project-card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .project-title h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status-completed { background: #c6f6d5; color: #22543d; }
+        .status-running { background: #fef5e7; color: #c05621; }
+        .status-failed { background: #fed7d7; color: #c53030; }
+        
+        .project-date {
+            font-size: 12px;
+            color: #718096;
+        }
+        
+        .project-prompt {
+            color: #4a5568;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        
+        .project-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s;
+        }
+        
+        .action-btn.download {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .action-btn.download:hover {
+            background: #38a169;
+        }
+        
+        .action-btn.docker {
+            background: #4299e1;
+            color: white;
+        }
+        
+        .action-btn.logs {
+            background: #ed8936;
+            color: white;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state h3 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state p {
+            color: #718096;
+            margin-bottom: 20px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+        
+        .modal-header {
+            padding: 20px 30px;
+            background: #f7fafc;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .modal-header h3 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .close {
+            font-size: 24px;
+            cursor: pointer;
+            color: #a0aec0;
+        }
+        
+        .close:hover {
+            color: #718096;
+        }
+        
+        .modal-body {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        
+        #logs-content {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1001;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .message.success { background: #48bb78; }
+        .message.error { background: #f56565; }
+        .message.info { background: #4299e1; }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .status-good { border-left: 4px solid #48bb78; }
+        .status-warning { border-left: 4px solid #ed8936; }
+        .status-error { border-left: 4px solid #f56565; }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <!-- Header with organic intelligence focus -->
+        <header class="game-header">
+            <div class="header-left">
+                <h1>🎭 AgentForge v3</h1>
+                <div class="version-toggle">
+                    <span class="version-label">Intelligence Mode:</span>
+                    <div class="toggle-switch">
+                        <input type="radio" id="mode-organic" name="intelligence" value="organic" checked>
+                        <label for="mode-organic">
+                            <span class="version-name">🎭 Organic</span>
+                            <span class="version-desc">8 Core Agents + Pure LLM</span>
+                        </label>
+                        
+                        <input type="radio" id="mode-classic" name="intelligence" value="classic">
+                        <label for="mode-classic">
+                            <span class="version-name">⚙️ Classic</span>
+                            <span class="version-desc">Traditional Pipeline</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="system-stats">
+                    <div class="stat-card">
+                        <span class="stat-value">{{ stats.total if stats else 0 }}</span>
+                        <span class="stat-label">Projects</span>
+                    </div>
+                    <div class="stat-card" id="organic-status">
+                        <span class="stat-value">{% if organic_available %}✅{% else %}❌{% endif %}</span>
+                        <span class="stat-label">Organic AI</span>
+                    </div>
+                    <div class="stat-card" id="llm-status">
+                        <span class="stat-value">⏳</span>
+                        <span class="stat-label">LLM Status</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Quick Actions Panel -->
+        <section class="action-panel">
+            <div class="quick-actions">
+                <a href="/organic" class="action-button primary">
+                    <div class="action-icon">🎭</div>
+                    <div class="action-text">
+                        <span class="action-title">Organic Intelligence</span>
+                        <span class="action-desc">Pure LLM decision making with 8 core agents</span>
+                    </div>
+                </a>
+                
+                <a href="/create" class="action-button secondary">
+                    <div class="action-icon">🚀</div>
+                    <div class="action-text">
+                        <span class="action-title">Create Project</span>
+                        <span class="action-desc">Generate new AI-powered project</span>
+                    </div>
+                </a>
+                
+                <a href="/monitor" class="action-button tertiary">
+                    <div class="action-icon">📊</div>
+                    <div class="action-text">
+                        <span class="action-title">Live Monitor</span>
+                        <span class="action-desc">Watch agents in real-time</span>
+                    </div>
+                </a>
+                
+                <button class="action-button tertiary" onclick="refreshSystemStatus()">
+                    <div class="action-icon">🔄</div>
+                    <div class="action-text">
+                        <span class="action-title">Refresh Status</span>
+                        <span class="action-desc">Check system health</span>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <!-- Project Gallery -->
+        <section class="project-gallery">
+            <div class="gallery-header">
+                <h2>🗂️ Project Gallery</h2>
+                <div class="gallery-controls">
+                    <input type="search" id="search-projects" placeholder="Search projects..." class="search-input">
+                    <select id="filter-status" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="completed">Completed</option>
+                        <option value="failed">Failed</option>
+                        <option value="running">Running</option>
+                    </select>
+                </div>
+            </div>
+            
+            {% if projects %}
+            <div class="projects-grid" id="projects-grid">
+                {% for project in projects %}
+                <div class="project-card" data-status="{{ project.status }}" data-name="{{ project.name.lower() }}">
+                    <div class="card-header">
+                        <div class="project-title">
+                            <h3>{{ project.name }}</h3>
+                            <span class="status-badge status-{{ project.status }}">{{ project.status }}</span>
+                        </div>
+                        <div class="project-date">
+                            {{ project.created_at.strftime('%d/%m %H:%M') if project.created_at else 'Unknown' }}
+                        </div>
+                    </div>
+                    
+                    <div class="card-body">
+                        <p class="project-prompt">{{ project.prompt[:120] }}{% if project.prompt|length > 120 %}...{% endif %}</p>
+                        
+                        <div class="project-actions">
+                            {% if project.zip_path %}
+                            <a href="{{ url_for('download_zip', filename=project.zip_path.split('/')[-1] if '/' in project.zip_path else project.zip_path.split('\\\\')[-1]) }}" 
+                               class="action-btn download">
+                                📦 Download
+                            </a>
+                            {% endif %}
+                            
+                            <button onclick="viewLogs('{{ project.id }}')" class="action-btn logs">
+                                📋 Logs
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🎭</div>
+                <h3>No projects yet</h3>
+                <p>Create your first organic intelligence project!</p>
+                <a href="/organic" class="btn-primary">Start with Organic Intelligence</a>
+            </div>
+            {% endif %}
+        </section>
+    </div>
+
+    <!-- Modals -->
+    <div id="logs-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Project Logs</h3>
+                <span class="close" onclick="closeModal('logs-modal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <pre id="logs-content"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Socket.IO
+        const socket = io();
+        
+        socket.on('connect', function() {
+            console.log('Connected to AgentForge v3');
+        });
+        
+        // Initialize system status check
+        let systemStatus = {};
+        
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/system_status');
+                const status = await response.json();
+                systemStatus = status;
+                
+                // Update LLM status
+                const llmStatusEl = document.getElementById('llm-status');
+                if (status.llm_status === 'connected') {
+                    llmStatusEl.className = 'stat-card status-good';
+                    llmStatusEl.querySelector('.stat-value').textContent = '✅';
+                    llmStatusEl.querySelector('.stat-label').textContent = 'LLM Ready';
+                } else {
+                    llmStatusEl.className = 'stat-card status-error';
+                    llmStatusEl.querySelector('.stat-value').textContent = '❌';
+                    llmStatusEl.querySelector('.stat-label').textContent = 'LLM Error';
+                }
+                
+                // Update organic status
+                const organicStatusEl = document.getElementById('organic-status');
+                if (status.organic_intelligence) {
+                    organicStatusEl.className = 'stat-card status-good';
+                } else {
+                    organicStatusEl.className = 'stat-card status-error';
+                }
+                
+            } catch (error) {
+                console.error('Error checking system status:', error);
+                document.getElementById('llm-status').className = 'stat-card status-error';
+                document.getElementById('llm-status').querySelector('.stat-value').textContent = '❌';
+                document.getElementById('llm-status').querySelector('.stat-label').textContent = 'Error';
+            }
+        }
+        
+        function refreshSystemStatus() {
+            const button = event.target.closest('.action-button');
+            const icon = button.querySelector('.action-icon');
+            const originalIcon = icon.textContent;
+            
+            icon.innerHTML = '<div class="spinner"></div>';
+            
+            checkSystemStatus().finally(() => {
+                setTimeout(() => {
+                    icon.textContent = originalIcon;
+                }, 1000);
+            });
+        }
+        
+        // Project filtering
+        function filterProjects() {
+            const searchTerm = document.getElementById('search-projects').value.toLowerCase();
+            const statusFilter = document.getElementById('filter-status').value;
+            const cards = document.querySelectorAll('.project-card');
+            
+            cards.forEach(card => {
+                const name = card.dataset.name;
+                const status = card.dataset.status;
+                
+                const matchesSearch = !searchTerm || name.includes(searchTerm);
+                const matchesStatus = !statusFilter || status === statusFilter;
+                
+                card.style.display = matchesSearch && matchesStatus ? 'block' : 'none';
+            });
+        }
+        
+        document.getElementById('search-projects').addEventListener('input', filterProjects);
+        document.getElementById('filter-status').addEventListener('change', filterProjects);
+        
+        // View logs
+        async function viewLogs(projectId) {
+            try {
+                const response = await fetch(`/api/project/${projectId}/logs`);
+                if (!response.ok) {
+                    throw new Error('Failed to load logs');
+                }
+                
+                const logs = await response.json();
+                
+                document.getElementById('logs-content').textContent = 
+                    Array.isArray(logs) ? 
+                    logs.map(l => typeof l === 'string' ? l : JSON.stringify(l, null, 2)).join('\n') : 
+                    JSON.stringify(logs, null, 2);
+                
+                document.getElementById('logs-modal').style.display = 'flex';
+            } catch (error) {
+                showMessage('Could not load logs: ' + error.message, 'error');
+            }
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function showMessage(text, type = 'info') {
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${type}`;
+            messageEl.textContent = text;
+            
+            document.body.appendChild(messageEl);
+            
+            setTimeout(() => {
+                messageEl.remove();
+            }, 5000);
+        }
+        
+        // Intelligence mode switching
+        document.querySelectorAll('input[name="intelligence"]').forEach(input => {
+            input.addEventListener('change', function() {
+                if (this.checked) {
+                    const mode = this.value;
+                    localStorage.setItem('preferred_intelligence', mode);
+                    if (mode === 'organic') {
+                        showMessage('🎭 Switched to Organic Intelligence Mode', 'success');
+                    } else {
+                        showMessage('⚙️ Switched to Classic Mode', 'info');
+                    }
+                }
+            });
+        });
+        
+        // Restore preferred intelligence mode
+        const preferred = localStorage.getItem('preferred_intelligence');
+        if (preferred) {
+            const toggle = document.getElementById(`mode-${preferred}`);
+            if (toggle) {
+                toggle.checked = true;
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', checkSystemStatus);
+    </script>
+</body>
+</html>

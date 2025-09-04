@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 AgentForge v3 - Organic Intelligence</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            min-height: 90vh; /* Use min-height instead of fixed height */
+            max-height: 95vh; /* Limit max height to prevent overflow */
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            grid-template-rows: 80px 1fr;
+            overflow: hidden; /* Keep this for grid layout */
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #4a5568, #2d3748);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            justify-content: space-between;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .back-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .header-info {
+            font-size: 16px;
+            opacity: 0.8;
+        }
+        
+        .main-area {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+            overflow-y: auto; /* Enable vertical scrolling */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            grid-column: 1;
+            grid-row: 2;
+        }
+        
+        .input-section {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            flex-shrink: 0;
+            max-height: 400px; /* Limit max height to prevent overwhelming the layout */
+            overflow-y: auto; /* Allow scrolling within the input section if needed */
+        }
+        
+        .input-section h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+            font-size: 18px;
+        }
+        
+        #prompt-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+            max-height: 200px; /* Prevent the textarea from becoming too tall */
+            font-family: inherit;
+        }
+        
+        #prompt-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        #generate-btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        #generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .progress-area {
+            flex: 1;
+            background: #f7fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+            flex-shrink: 1;
+        }
+        
+        .progress-header {
+            background: #edf2f7;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .current-agent {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: white;
+            min-height: 0;
+        }
+        
+        .agent-activity {
+            background: #f0fff4;
+            border: 2px solid #68d391;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .agent-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #22543d;
+            margin-bottom: 10px;
+        }
+        
+        .agent-operation {
+            color: #2f855a;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .team-discussion {
+            background: #fff5f5;
+            border-left: 4px solid #fc8181;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            word-wrap: break-word;
+        }
+        
+        .team-discussion h4 {
+            color: #742a2a;
+            margin-bottom: 10px;
+        }
+        
+        .perspective {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: rgba(254, 226, 226, 0.5);
+            border-radius: 5px;
+            font-size: 14px;
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tech-choice {
+            background: #e6fffa;
+            border: 2px solid #38b2ac;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .tech-choice h4 {
+            color: #234e52;
+            margin-bottom: 8px;
+        }
+        
+        .sidebar {
+            background: #f7fafc;
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            grid-column: 2;
+            grid-row: 2;
+            overflow-y: auto; /* Enable vertical scrolling for the entire sidebar */
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            height: 100%; /* Ensure full height */
+            max-height: calc(95vh - 80px); /* Account for header height */
+            min-height: 500px; /* Minimum height to prevent crushing */
+        }
+        
+        .agent-log {
+            flex: 0 0 auto; /* Don't grow, don't shrink, auto basis */
+            padding: 20px;
+            overflow-y: auto;
+            max-height: 350px; /* Limit agent log height to leave room for other sections */
+            min-height: 200px; /* Ensure minimum visible height */
+        }
+        
+        .agent-log h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .log-entry {
+            background: white;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #cbd5e0;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        .log-entry.completed {
+            border-left-color: #48bb78;
+        }
+        
+        .log-entry.running {
+            border-left-color: #ed8936;
+            background: #fffaf0;
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+        
+        .log-entry.failed {
+            border-left-color: #f56565;
+            background: #fed7d7;
+        }
+        
+        .log-entry.skipped {
+            border-left-color: #a0aec0;
+            opacity: 0.7;
+        }
+        
+        @keyframes pulse {
+            from { background-color: #fffaf0; }
+            to { background-color: #feebc8; }
+        }
+        
+        @keyframes slideIn {
+            from { 
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to { 
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes slideOut {
+            from { 
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to { 
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        
+        .stats-area {
+            padding: 20px;
+            background: #edf2f7;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* NEW: Team Debate Visualization */
+        .debate-section {
+            flex: 0 0 auto; /* Don't grow/shrink automatically */
+            max-height: 300px; /* Limit debate section height */
+            padding: 15px;
+            background: #f0fff4;
+            border-top: 1px solid #c6f6d5;
+            border-bottom: 1px solid #c6f6d5;
+        }
+        
+        .debate-section h3 {
+            color: #22543d;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .debate-container {
+            height: 180px; /* Reduced height to fit better */
+            overflow-y: auto;
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            border: 1px solid #c6f6d5;
+        }
+        
+        .debate-role {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            border-left: 3px solid #48bb78;
+        }
+        
+        .debate-role.pm { border-left-color: #3182ce; background: #ebf8ff; }
+        .debate-role.dev { border-left-color: #38a169; background: #f0fff4; }
+        .debate-role.po { border-left-color: #d69e2e; background: #fffaf0; }
+        .debate-role.consultant { border-left-color: #805ad5; background: #faf5ff; }
+        .debate-role.user { border-left-color: #e53e3e; background: #fed7d7; }
+        
+        /* NEW: Agent Decision Tracking */
+        .decisions-section {
+            flex: 0 0 auto; /* Don't grow/shrink automatically */
+            max-height: 250px; /* Limit decisions section height */
+            padding: 15px;
+            background: #fff5f5;
+            border-top: 1px solid #fed7d7;
+            border-bottom: 1px solid #fed7d7;
+        }
+        
+        .decisions-section h3 {
+            color: #742a2a;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        
+        .decisions-container {
+            height: 140px; /* Reduced height to fit better */
+            overflow-y: auto;
+            background: white;
+            border-radius: 6px;
+            padding: 10px;
+            border: 1px solid #fed7d7;
+        }
+        
+        .decision-item {
+            margin: 6px 0;
+            padding: 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: #f7fafc;
+            border-left: 3px solid #a0aec0;
+        }
+        
+        .decision-item.tech { border-left-color: #4299e1; }
+        .decision-item.validation { border-left-color: #f56565; }
+        .decision-item.quality { border-left-color: #38a169; }
+        
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .download-section {
+            margin-top: 15px;
+        }
+        
+        #download-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+        
+        #download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .samples-section {
+            margin-top: 15px;
+        }
+        
+        .samples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .sample-btn {
+            padding: 8px 12px;
+            background: #e2e8f0;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        
+        .sample-btn:hover {
+            background: #cbd5e0;
+        }
+        
+        .hidden { display: none; }
+        
+        /* 📜 Better scrollbar styling */
+        .current-agent::-webkit-scrollbar,
+        .agent-log::-webkit-scrollbar,
+        .team-discussion::-webkit-scrollbar,
+        .main-area::-webkit-scrollbar,
+        .input-section::-webkit-scrollbar,
+        .sidebar::-webkit-scrollbar,
+        .debate-container::-webkit-scrollbar,
+        .decisions-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .current-agent::-webkit-scrollbar-track,
+        .agent-log::-webkit-scrollbar-track,
+        .team-discussion::-webkit-scrollbar-track,
+        .main-area::-webkit-scrollbar-track,
+        .input-section::-webkit-scrollbar-track,
+        .sidebar::-webkit-scrollbar-track,
+        .debate-container::-webkit-scrollbar-track,
+        .decisions-container::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        .current-agent::-webkit-scrollbar-thumb,
+        .agent-log::-webkit-scrollbar-thumb,
+        .team-discussion::-webkit-scrollbar-thumb,
+        .main-area::-webkit-scrollbar-thumb,
+        .input-section::-webkit-scrollbar-thumb,
+        .sidebar::-webkit-scrollbar-thumb,
+        .debate-container::-webkit-scrollbar-thumb,
+        .decisions-container::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
+        }
+        
+        .current-agent::-webkit-scrollbar-thumb:hover,
+        .agent-log::-webkit-scrollbar-thumb:hover,
+        .team-discussion::-webkit-scrollbar-thumb:hover,
+        .main-area::-webkit-scrollbar-thumb:hover,
+        .input-section::-webkit-scrollbar-thumb:hover,
+        .sidebar::-webkit-scrollbar-thumb:hover,
+        .debate-container::-webkit-scrollbar-thumb:hover,
+        .decisions-container::-webkit-scrollbar-thumb:hover {
+            background: #a0aec0;
+        }
+        
+        /* SmolAgent-specific styles */
+        .agent-activity.skipped {
+            background: #f7fafc;
+            border: 2px solid #a0aec0;
+        }
+        
+        .intelligence-decision {
+            background: #edf2f7;
+            padding: 10px;
+            border-radius: 5px;
+            font-style: italic;
+            color: #4a5568;
+            margin: 10px 0;
+        }
+        
+        .skip-indicator {
+            background: #fed7d7;
+            padding: 5px 10px;
+            border-radius: 15px;
+            color: #742a2a;
+        }
+        
+        .agent-completion {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .completion-summary {
+            font-weight: 600;
+            color: #22543d;
+            margin-bottom: 8px;
+        }
+        
+        .stage-details {
+            background: #e6fffa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #2c7a7b;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <a href="/" class="back-btn">← Dashboard</a>
+                <h1>🎭 Organic Intelligence</h1>
+            </div>
+            <div class="header-info">8 Core Agents | Pure LLM Decisions</div>
+        </div>
+        
+        <div class="main-area">
+            <div class="input-section">
+                <h3>🚀 Project Request</h3>
+                <textarea id="prompt-input" placeholder="Describe your project and let the organic intelligence team decide the best approach...
+
+Examples:
+• 'Create a real-time chat application for a startup'
+• 'Build a high-performance analytics API'
+• 'Develop an e-commerce platform with payment integration'"></textarea>
+                <button id="generate-btn" onclick="startGeneration()">
+                    🎭 Generate with Organic Intelligence
+                </button>
+                
+                <div class="samples-section">
+                    <small style="color: #718096;">Quick samples:</small>
+                    <div class="samples-grid">
+                        <button class="sample-btn" onclick="setPrompt('Create a modern blog platform for content creators')">
+                            📝 Blog Platform
+                        </button>
+                        <button class="sample-btn" onclick="setPrompt('Build a real-time chat application with WebSocket support')">
+                            💬 Chat App
+                        </button>
+                        <button class="sample-btn" onclick="setPrompt('Develop a high-performance API for data analytics')">
+                            📊 Analytics API
+                        </button>
+                        <button class="sample-btn" onclick="setPrompt('Create an e-commerce platform with payment integration')">
+                            🛒 E-commerce
+                        </button>
+                        <button class="sample-btn" onclick="setPrompt('Build a task management system for teams')">
+                            ✅ Task Manager
+                        </button>
+                        <button class="sample-btn" onclick="setPrompt('Create a social media dashboard for businesses')">
+                            📱 Social Dashboard
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="progress-area">
+                <div class="progress-header">
+                    🔄 Live Agent Activity
+                </div>
+                <div class="current-agent" id="current-agent">
+                    <div style="text-align: center; color: #a0aec0; margin-top: 50px;">
+                        <h3>🎭 Ready for Organic Intelligence</h3>
+                        <p>Enter a project description and watch the AI team debate and decide the best technologies!</p>
+                        <div style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 8px; color: #22543d;">
+                            <strong>🧠 How Organic Intelligence Works:</strong><br>
+                            The LLM wears multiple stakeholder hats (PM, Developer, Product Owner, Consultant, End User) 
+                            and makes organic technology decisions based on project requirements and learned experience.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="agent-log">
+                <h3>📜 Agent Progress Log</h3>
+                <div id="agent-log-list">
+                    <!-- Agent progress will appear here -->
+                </div>
+            </div>
+            
+            <!-- NEW: Team Debate Visualization -->
+            <div class="debate-section" style="display: none;" id="debate-section">
+                <h3>🎭 Live Team Debate</h3>
+                <div id="debate-log" class="debate-container">
+                    <!-- Real-time team debate will appear here -->
+                </div>
+            </div>
+            
+            <!-- NEW: Agent Decision Tracking -->
+            <div class="decisions-section" style="display: none;" id="decisions-section">
+                <h3>🎯 Agent Decisions</h3>
+                <div id="decisions-log" class="decisions-container">
+                    <!-- Agent choices will appear here -->
+                </div>
+            </div>
+            
+            <div class="stats-area">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="tech-choices">0</div>
+                        <div>Tech Choices</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="files-generated">0</div>
+                        <div>Files Generated</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="llm-calls">0</div>
+                        <div>LLM Calls</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="team-perspectives">0</div>
+                        <div>Team Views</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="validation-score">N/A</div>
+                        <div>Quality Score</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="refinement-cycles">0</div>
+                        <div>Refinements</div>
+                    </div>
+                </div>
+                
+                <div class="download-section">
+                    <button id="download-btn" onclick="downloadProject()" disabled>
+                        📦 Download Project
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentSessionId = null;
+        
+        // UI Elements
+        const promptInput = document.getElementById('prompt-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const currentAgentDiv = document.getElementById('current-agent');
+        const agentLogList = document.getElementById('agent-log-list');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Stats elements
+        const techChoicesSpan = document.getElementById('tech-choices');
+        const filesGeneratedSpan = document.getElementById('files-generated');
+        const llmCallsSpan = document.getElementById('llm-calls');
+        const teamPerspectivesSpan = document.getElementById('team-perspectives');
+        const validationScoreSpan = document.getElementById('validation-score');
+        const refinementCyclesSpan = document.getElementById('refinement-cycles');
+        
+        // NEW: Team debate and decisions elements
+        const debateSection = document.getElementById('debate-section');
+        const debateLog = document.getElementById('debate-log');
+        const decisionsSection = document.getElementById('decisions-section');
+        const decisionsLog = document.getElementById('decisions-log');
+        
+        // Tracking variables
+        let teamDebateActive = false;
+        let refinementCount = 0;
+        let currentValidationScore = 'N/A';
+        
+        function setPrompt(text) {
+            promptInput.value = text;
+        }
+        
+        // 📜 Auto-scroll functions for better UX
+        function scrollToBottomOfCurrentAgent() {
+            const currentAgent = document.getElementById('current-agent');
+            currentAgent.scrollTop = currentAgent.scrollHeight;
+        }
+        
+        function scrollToBottomOfAgentLog() {
+            const agentLog = document.getElementById('agent-log-list');
+            agentLog.scrollTop = agentLog.scrollHeight;
+        }
+        
+        // NEW: Team debate visualization functions
+        function showDebateSection() {
+            debateSection.style.display = 'block';
+            teamDebateActive = true;
+        }
+        
+        function hideDebateSection() {
+            debateSection.style.display = 'none';
+            teamDebateActive = false;
+        }
+        
+        function addDebateMessage(role, message) {
+            const roleClass = role.toLowerCase().replace(/\s+/g, '');
+            const roleEmoji = {
+                'pm': '👔',
+                'dev': '💻', 
+                'po': '📋',
+                'consultant': '🎯',
+                'user': '👤'
+            };
+            
+            const debateEntry = document.createElement('div');
+            debateEntry.className = `debate-role ${roleClass}`;
+            debateEntry.innerHTML = `
+                <strong>${roleEmoji[roleClass] || '🎭'} ${role}:</strong><br>
+                <span>${message.substring(0, 150)}${message.length > 150 ? '...' : ''}</span>
+            `;
+            
+            debateLog.appendChild(debateEntry);
+            debateLog.scrollTop = debateLog.scrollHeight;
+        }
+        
+        // NEW: Agent decision tracking functions
+        function showDecisionsSection() {
+            decisionsSection.style.display = 'block';
+        }
+        
+        function addDecision(type, agent, decision) {
+            const decisionEntry = document.createElement('div');
+            decisionEntry.className = `decision-item ${type}`;
+            
+            const typeEmoji = {
+                'tech': '⚙️',
+                'validation': '✅',
+                'quality': '🎯'
+            };
+            
+            decisionEntry.innerHTML = `
+                <strong>${typeEmoji[type]} ${agent}:</strong><br>
+                <span>${decision.substring(0, 100)}${decision.length > 100 ? '...' : ''}</span>
+            `;
+            
+            decisionsLog.appendChild(decisionEntry);
+            decisionsLog.scrollTop = decisionsLog.scrollHeight;
+        }
+        
+        // NEW: Update validation score and refinement tracking
+        function updateValidationScore(score) {
+            currentValidationScore = score;
+            validationScoreSpan.textContent = score;
+            
+            if (score < 8) {
+                validationScoreSpan.style.color = '#e53e3e';
+                addDecision('quality', 'ValidationRouter', `Quality score ${score}/10 - Triggering refinement`);
+            } else {
+                validationScoreSpan.style.color = '#38a169';
+                addDecision('quality', 'ValidationRouter', `Quality score ${score}/10 - Approved`);
+            }
+        }
+        
+        function incrementRefinementCycle() {
+            refinementCount++;
+            refinementCyclesSpan.textContent = refinementCount;
+            addDecision('validation', 'System', `Starting refinement cycle #${refinementCount}`);
+        }
+        
+        function startGeneration() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                alert('Please enter a project description');
+                return;
+            }
+            
+            // Reset UI
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading"></span> Generating...';
+            downloadBtn.disabled = true;
+            agentLogList.innerHTML = '';
+            resetStats();
+            
+            // Show waiting state
+            currentAgentDiv.innerHTML = `
+                <div class="agent-activity">
+                    <div class="agent-name">🎭 Initializing Organic Intelligence...</div>
+                    <div class="agent-operation">Starting multi-perspective team meeting</div>
+                    <div style="margin-top: 15px; padding: 10px; background: #e6fffa; border-radius: 6px; font-size: 14px;">
+                        <strong>🧠 Team Assembly:</strong> The LLM is now embodying different stakeholder perspectives 
+                        to make organic technology decisions based on your project requirements.
+                    </div>
+                </div>
+            `;
+            
+            // Start pipeline
+            currentSessionId = socket.id;
+            socket.emit('start_pipeline', { prompt: prompt });
+        }
+        
+        function resetStats() {
+            techChoicesSpan.textContent = '0';
+            filesGeneratedSpan.textContent = '0';
+            llmCallsSpan.textContent = '0';
+            teamPerspectivesSpan.textContent = '0';
+            validationScoreSpan.textContent = 'N/A';
+            refinementCyclesSpan.textContent = '0';
+            
+            // Reset tracking variables
+            teamDebateActive = false;
+            refinementCount = 0;
+            currentValidationScore = 'N/A';
+            
+            // Reset visualization sections
+            hideDebateSection();
+            decisionsSection.style.display = 'none';
+            debateLog.innerHTML = '';
+            decisionsLog.innerHTML = '';
+        }
+        
+        function updateStats(stats) {
+            if (stats.tech_choices !== undefined) techChoicesSpan.textContent = stats.tech_choices;
+            if (stats.files_generated !== undefined) filesGeneratedSpan.textContent = stats.files_generated;
+            if (stats.llm_calls !== undefined) llmCallsSpan.textContent = stats.llm_calls;
+            if (stats.team_perspectives !== undefined) teamPerspectivesSpan.textContent = stats.team_perspectives;
+            if (stats.validation_score !== undefined) updateValidationScore(stats.validation_score);
+        }
+        
+        function addLogEntry(agent, status, summary = '') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${status}`;
+            logEntry.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 5px;">${agent}</div>
+                <div style="font-size: 12px; opacity: 0.8;">${summary}</div>
+            `;
+            agentLogList.appendChild(logEntry);
+            agentLogList.scrollTop = agentLogList.scrollHeight;
+        }
+        
+        function downloadProject() {
+            window.open('/download_project', '_blank');
+        }
+        
+        // Socket event handlers
+        socket.on('pipeline_started', (data) => {
+            console.log('🎭 Organic pipeline started:', data);
+        });
+        
+        socket.on('agent_started', (data) => {
+            // Update current agent display
+            currentAgentDiv.innerHTML = `
+                <div class="agent-activity">
+                    <div class="agent-name">🔄 ${data.agent}</div>
+                    <div class="agent-operation">Step ${data.step} of ${data.total} - Analyzing...</div>
+                    <div style="margin-top: 10px;">
+                        <span class="loading"></span> Processing with pure LLM intelligence...
+                    </div>
+                </div>
+            `;
+            
+            // 📜 Auto-scroll to show new content
+            scrollToBottomOfCurrentAgent();
+            
+            // Add to log as running
+            addLogEntry(data.agent, 'running', 'Processing...');
+            
+            // NEW: Show appropriate visualization sections
+            if (data.agent === 'MultiPerspectiveTechAgent') {
+                showDebateSection();
+                showDecisionsSection();
+                addDecision('tech', data.agent, 'Starting parallel team debate with 5 concurrent roles');
+            } else if (data.agent === 'CodeGenAgent') {
+                showDecisionsSection();
+                if (refinementCount > 0) {
+                    addDecision('validation', data.agent, `Regenerating code - attempt #${refinementCount + 1}`);
+                }
+            } else if (data.agent === 'ValidationRouter') {
+                addDecision('quality', data.agent, 'Evaluating code quality and deciding next steps');
+            }
+        });
+        
+        socket.on('llm_call', (data) => {
+            // Update current agent with LLM activity
+            const currentActivity = currentAgentDiv.querySelector('.agent-activity');
+            if (currentActivity) {
+                const operation = currentActivity.querySelector('.agent-operation');
+                operation.textContent = `${data.operation} (LLM Call #${data.total_calls})`;
+                
+                // Add team discussion visualization for tech agent
+                if (data.agent === 'MultiPerspectiveTechAgent') {
+                    const existingDiscussion = currentActivity.querySelector('.team-discussion');
+                    if (!existingDiscussion) {
+                        const discussionDiv = document.createElement('div');
+                        discussionDiv.className = 'team-discussion';
+                        discussionDiv.innerHTML = `
+                            <h4>🎭 Multi-Perspective Team Meeting</h4>
+                            <div class="perspective">👔 PM: Analyzing timeline and budget constraints...</div>
+                            <div class="perspective">💻 Dev: Evaluating technical implementation options...</div>
+                            <div class="perspective">📋 PO: Considering user experience requirements...</div>
+                            <div class="perspective">🎯 Consultant: Reviewing industry best practices...</div>
+                            <div class="perspective">👤 User: Assessing performance expectations...</div>
+                        `;
+                        currentActivity.appendChild(discussionDiv);
+                        
+                        // 📜 Auto-scroll to show new discussion
+                        scrollToBottomOfCurrentAgent();
+                        
+                        // Animate perspectives appearing
+                        const perspectives = discussionDiv.querySelectorAll('.perspective');
+                        perspectives.forEach((p, i) => {
+                            setTimeout(() => {
+                                p.style.opacity = '0';
+                                p.style.transform = 'translateY(10px)';
+                                setTimeout(() => {
+                                    p.style.transition = 'all 0.5s ease-in';
+                                    p.style.opacity = '1';
+                                    p.style.transform = 'translateY(0)';
+                                }, i * 200);
+                            }, 100);
+                        });
+                    }
+                }
+            }
+            
+            // Update stats
+            updateStats({ 
+                llm_calls: data.total_calls,
+                team_perspectives: data.team_perspectives 
+            });
+        });
+        
+        // SmolAgent-specific event handlers
+        socket.on('agent_skipped', (data) => {
+            // Show skipped stage with reasoning
+            currentAgentDiv.innerHTML += `
+                <div class="agent-activity skipped">
+                    <div class="agent-name">⏭️ ${data.agent}</div>
+                    <div class="agent-operation">SKIPPED - ${data.reason}</div>
+                    <div class="intelligence-decision">
+                        ${data.intelligence_decision}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 14px; color: #718096;">
+                        <span class="skip-indicator">🧠 SmolAgent Intelligence: Conditions not met, skipping this stage</span>
+                    </div>
+                </div>
+            `;
+            
+            // Add to log as skipped
+            addLogEntry(data.agent, 'skipped', data.reason);
+            scrollToBottomOfCurrentAgent();
+        });
+        
+        socket.on('agent_completed', (data) => {
+            // Handle SmolAgent completions differently from organic agent completions
+            if (data.agent && data.agent.startsWith('SmolAgent-')) {
+                // Update current agent display with completion info
+                currentAgentDiv.innerHTML += `
+                    <div class="agent-completion">
+                        <div class="completion-summary">✅ ${data.result_summary}</div>
+                        <div class="stage-details">${JSON.stringify(data.data, null, 2).substring(0, 200)}...</div>
+                    </div>
+                `;
+                
+                // Add to log
+                addLogEntry(data.agent, 'completed', data.result_summary);
+                scrollToBottomOfCurrentAgent();
+                return;
+            }
+            
+            // Original organic agent completion handler
+            // Update log entry
+            const logEntries = agentLogList.querySelectorAll('.log-entry');
+            const lastEntry = logEntries[logEntries.length - 1];
+            if (lastEntry) {
+                lastEntry.className = 'log-entry completed';
+                lastEntry.querySelector('div:last-child').textContent = data.result;
+            }
+            
+            // 📜 Auto-scroll agent log to show completion
+            scrollToBottomOfAgentLog();
+            
+            // 📊 Real-time stats updates from server
+            if (data.stats && Object.keys(data.stats).length > 0) {
+                updateStats(data.stats);
+            }
+            
+            // Special handling for tech selection
+            if (data.agent === 'MultiPerspectiveTechAgent') {
+                // Show tech choices in current agent area
+                const techChoices = data.result;
+                currentAgentDiv.innerHTML += `
+                    <div class="tech-choice">
+                        <h4>🎯 Team's Organic Technology Decision</h4>
+                        <div>${techChoices}</div>
+                    </div>
+                `;
+            }
+            
+            // Show file generation progress
+            else if (data.agent === 'CodeGenAgent') {
+                currentAgentDiv.innerHTML += `
+                    <div class="code-generation">
+                        <h4>💻 Code Generation Complete</h4>
+                        <div style="font-size: 14px; color: #2f855a;">${data.result}</div>
+                    </div>
+                `;
+            }
+        });
+        
+        socket.on('agent_skipped', (data) => {
+            addLogEntry(data.agent, 'skipped', data.reason);
+        });
+        
+        socket.on('agent_failed', (data) => {
+            addLogEntry(data.agent, 'failed', `Error: ${data.error}`);
+        });
+        
+        socket.on('pipeline_completed', (data) => {
+            // Show final results
+            currentAgentDiv.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <h2 style="color: #48bb78; margin-bottom: 20px;">🎉 Organic Intelligence Complete!</h2>
+                    
+                    <div class="tech-choice">
+                        <h4>🎭 Final Technology Stack</h4>
+                        ${data.tech_stack && data.tech_stack.length > 0 ? data.tech_stack.map(tech => `
+                            <div style="margin: 8px 0;">
+                                <strong>${tech.role || 'Component'}:</strong> ${tech.name || tech}
+                            </div>
+                        `).join('') : '<div>Technology decisions made organically by the AI team</div>'}
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 8px;">
+                        <h4>📊 Project Evaluation</h4>
+                        <div>Overall Score: ${data.evaluation?.overall_score || 'Generated'}/10</div>
+                        <div>Technology Fit: ${data.evaluation?.technology_fit || 'Optimized'}/10</div>
+                        <div>Code Quality: ${data.evaluation?.code_quality || 'High'}/10</div>
+                        <div>User Satisfaction: ${data.evaluation?.user_satisfaction || 'Estimated'}/10</div>
+                    </div>
+                    
+                    <div style="margin-top: 20px; font-size: 14px; color: #4a5568;">
+                        🧠 This project was created through pure LLM intelligence with no hard-coded technology choices.
+                        The AI team organically selected the best tools based on your requirements and learned experience.
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #e6fffa; border-radius: 8px;">
+                        <h4>📁 Project Ready</h4>
+                        <div>Files Generated: ${data.stats?.files_generated || 'Multiple'}</div>
+                        <div>LLM Calls: ${data.stats?.llm_calls || 0}</div>
+                        <div>Tech Choices: ${data.stats?.tech_choices || 1}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Update final stats
+            if (data.stats) {
+                updateStats(data.stats);
+            }
+            
+            // ALWAYS enable download button when pipeline completes
+            downloadBtn.disabled = false;
+            downloadBtn.style.opacity = '1';
+            downloadBtn.innerHTML = '📦 Download Project';
+            
+            // Re-enable generate button
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '🎭 Generate with Organic Intelligence';
+            
+            console.log('🎉 Pipeline completed, download ready:', data.download_ready);
+        });
+        
+        // NEW: Team debate event handlers
+        socket.on('team_debate_started', (data) => {
+            showDebateSection();
+            addDebateMessage('System', 'Parallel team debate initiated - 5 concurrent perspectives');
+        });
+        
+        socket.on('team_role_response', (data) => {
+            addDebateMessage(data.role, data.response);
+            teamPerspectivesSpan.textContent = parseInt(teamPerspectivesSpan.textContent) + 1;
+        });
+        
+        socket.on('team_consensus', (data) => {
+            addDebateMessage('Moderator', `CONSENSUS: ${data.consensus.substring(0, 200)}...`);
+            hideDebateSection();
+        });
+        
+        // NEW: Validation and refinement event handlers
+        socket.on('validation_completed', (data) => {
+            updateValidationScore(data.score);
+            addDecision('validation', 'ValidateAgent', `Code evaluated - Score: ${data.score}/10`);
+            
+            if (data.issues && data.issues.length > 0) {
+                addDecision('quality', 'ValidateAgent', `Found ${data.issues.length} issues to address`);
+            }
+        });
+        
+        socket.on('refinement_triggered', (data) => {
+            incrementRefinementCycle();
+            addDecision('validation', 'ValidationRouter', `Quality threshold not met - Starting refinement cycle`);
+        });
+        
+        socket.on('quality_goal_reached', (data) => {
+            validationScoreSpan.style.color = '#38a169';
+            validationScoreSpan.style.fontWeight = 'bold';
+            addDecision('quality', 'ValidationRouter', `🎯 QUALITY GOAL ACHIEVED! Score ${data.score}/${data.threshold} after ${data.iterations} iteration(s)`);
+            
+            // Visual celebration
+            const qualityAlert = document.createElement('div');
+            qualityAlert.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(45deg, #38a169, #48bb78);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 15px rgba(56, 161, 105, 0.3);
+                font-weight: bold;
+                z-index: 1000;
+                animation: slideIn 0.5s ease-out;
+            `;
+            qualityAlert.innerHTML = `🎯 Quality Goal Reached! ${data.score}/${data.threshold}`;
+            document.body.appendChild(qualityAlert);
+            
+            setTimeout(() => {
+                qualityAlert.style.animation = 'slideOut 0.5s ease-in';
+                setTimeout(() => document.body.removeChild(qualityAlert), 500);
+            }, 3000);
+        });
+        
+        socket.on('tech_stack_decided', (data) => {
+            if (data.tech_stack && Array.isArray(data.tech_stack)) {
+                techChoicesSpan.textContent = data.tech_stack.length;
+                data.tech_stack.forEach(tech => {
+                    addDecision('tech', 'TechTeam', `Selected ${tech.name} for ${tech.role}: ${tech.reasoning}`);
+                });
+            }
+        });
+        
+        socket.on('error', (data) => {
+            alert(`Error: ${data.message}`);
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '🎭 Generate with Organic Intelligence';
+        });
+        
+        socket.on('connect', () => {
+            console.log('🎭 Connected to Organic Intelligence');
+        });
+    </script>
+</body>
+</html>
