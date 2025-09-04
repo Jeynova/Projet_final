@@ -48,6 +48,13 @@ class MemoryAgent:
                 )
             """)
             
+            # Check if updated_at column exists, add if missing (migration)
+            try:
+                conn.execute("SELECT updated_at FROM project_memory LIMIT 1")
+            except sqlite3.OperationalError:
+                print("🔧 MemoryAgent: Adding missing updated_at column...")
+                conn.execute("ALTER TABLE project_memory ADD COLUMN updated_at TEXT")
+            
             # Vector embeddings table for semantic similarity
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (

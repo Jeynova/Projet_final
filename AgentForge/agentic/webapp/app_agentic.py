@@ -67,6 +67,7 @@ class AgentMonitor:
                     'decisions': 0,
                     'reviews': 0,
                     'files_generated': 0,
+                    'lines_written': 0,
                     'last_activity': None
                 }
             
@@ -77,6 +78,14 @@ class AgentMonitor:
             elif event_type == 'file_generated':
                 self.agents_stats[agent_name]['files_generated'] += 1
                 self.files_created += 1
+                # Track lines per agent (exclude MemoryAgent)
+                try:
+                    if agent_name != 'MemoryAgent':
+                        lines = int((extra_data or {}).get('lines', 0))
+                        self.agents_stats[agent_name]['lines_written'] += max(lines, 0)
+                        self.total_lines += max(lines, 0)
+                except Exception:
+                    pass
             
             self.agents_stats[agent_name]['last_activity'] = datetime.now().isoformat()
             
@@ -84,8 +93,23 @@ class AgentMonitor:
             socketio.emit('agent_stats_update', {
                 'agents': self.agents_stats,
                 'total_files': self.files_created,
-                'total_events': len(self.events)
+                'total_events': len(self.events),
+                'total_lines': self.total_lines
             }, room=self.session_id)
+
+    def get_summary_stats(self):
+        """Return overall stats summary for the session."""
+        duration = datetime.now() - self.start_time
+        return {
+            'duration_seconds': duration.total_seconds(),
+            'duration_formatted': str(duration).split('.')[0],
+            'total_events': len(self.events),
+            'files_created': self.files_created,
+            'total_lines': self.total_lines,
+            'agents_stats': self.agents_stats,
+            'key_decisions': self.key_decisions[-5:],
+            'critical_reviews': self.critical_reviews[-3:],
+        }
 
 
 class MonitoredAgenticGraph(SimpleAgenticGraph):
@@ -326,9 +350,18 @@ def run_generation_pipeline(session_id, prompt, project_name):
             'completed_at': datetime.now().isoformat()
         }
         
+        # Broadcast final summary stats for review UI
+        try:
+            summary = agentic_graph.monitor.get_summary_stats()
+            socketio.emit('generation_summary', summary, room=session_id)
+        except Exception:
+            pass
+
         # Notify completion
         socketio.emit('generation_complete', {
             'session_id': session_id,
+            'project_name': project_name,
+            'files_count': (len(result.get('saved_files', {})) if isinstance(result, dict) and 'saved_files' in result else result.get('files_generated', 0) if isinstance(result, dict) else 0),
             'result': result
         }, room=session_id)
         
