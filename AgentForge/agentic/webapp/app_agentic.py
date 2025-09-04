@@ -1,7 +1,7 @@
 """
-Flask Web Application for AgentForge - Clean Agentic Edition
-"""
+Flask Frontend for AgentForge - SIMPLE AGENTIC EDITION
 
+"""
 import os
 import sys
 import json
@@ -9,22 +9,21 @@ import threading
 import time
 import shutil
 import zipfile
-import random
 from pathlib import Path
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit
 import uuid
 
 # Add the project root to the path  
-ROOT = Path(__file__).resolve().parents[2]  # Go up 2 levels: webapp -> agentic -> AgentForge
+ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT))
 
 # Import our clean agentic system
 from agentic.simple_agentic_graph import SimpleAgenticGraph
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'agentic-secret-key-2025'
+app.config['SECRET_KEY'] = 'simple-agentic-secret-key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global storage for active sessions
@@ -50,248 +49,239 @@ class AgentMonitor:
         event = {
             'type': event_type,
             'message': message,
-            'agent_name': agent_name,
+            'agent': agent_name,
             'timestamp': datetime.now().isoformat(),
             'extra_data': extra_data or {}
         }
-        
         self.events.append(event)
         
-        # Broadcast to frontend
-        socketio.emit('agent_activity', event, room=self.session_id)
+        # Broadcast to frontend with session room
+        socketio.emit('agent_event', event, room=self.session_id)
+        print(f"📡 Broadcasting to session {self.session_id}: {event_type} - {message}")
         
-        # Update stats if it's an agent action
-        if agent_name and agent_name != 'System':
-            if agent_name not in self.agents_stats:
-                self.agents_stats[agent_name] = {
-                    'decisions': 0,
-                    'reviews': 0,
-                    'files_generated': 0,
-                    'lines_written': 0,
-                    'last_activity': None
-                }
+        # Update agent stats
+        if agent_name and agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {
+                'decisions': 0,
+                'reviews': 0,
+                'improvements': 0,
+                'files_created': 0,
+                'lines_written': 0
+            }
+    
+    def log_decision(self, agent_name, decision):
+        """Log agent decision"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
+        
+        self.agents_stats[agent_name]['decisions'] += 1
+        self.key_decisions.append({'agent': agent_name, 'decision': decision, 'time': datetime.now()})
+        self.log_event('decision', f"🤔 {agent_name} chose: {decision}", agent_name)
+    
+    def log_review(self, agent_name, filename, score):
+        """Log agent review"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
             
-            if event_type == 'decision':
-                self.agents_stats[agent_name]['decisions'] += 1
-            elif event_type == 'review':
-                self.agents_stats[agent_name]['reviews'] += 1
-            elif event_type == 'file_generated':
-                self.agents_stats[agent_name]['files_generated'] += 1
-                self.files_created += 1
-                # Track lines per agent (exclude MemoryAgent)
-                try:
-                    if agent_name != 'MemoryAgent':
-                        lines = int((extra_data or {}).get('lines', 0))
-                        self.agents_stats[agent_name]['lines_written'] += max(lines, 0)
-                        self.total_lines += max(lines, 0)
-                except Exception:
-                    pass
+        self.agents_stats[agent_name]['reviews'] += 1
+        if score <= 3:  # Critical review
+            self.critical_reviews.append({'agent': agent_name, 'file': filename, 'score': score, 'time': datetime.now()})
+        
+        self.log_event('review', f"🔍 {agent_name} reviewed {filename} → {score}/5", agent_name)
+    
+    def log_improvement(self, agent_name, filename, improvement):
+        """Log agent improvement"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
             
-            self.agents_stats[agent_name]['last_activity'] = datetime.now().isoformat()
+        self.agents_stats[agent_name]['improvements'] += 1
+        self.log_event('improvement', f"⚡ {agent_name} improved {filename}: {improvement}", agent_name)
+    
+    def log_file_creation(self, agent_name, filename, lines_count):
+        """Log file creation"""
+        if agent_name not in self.agents_stats:
+            self.agents_stats[agent_name] = {'decisions': 0, 'reviews': 0, 'improvements': 0, 'files_created': 0, 'lines_written': 0}
             
-            # Broadcast updated stats
-            socketio.emit('agent_stats_update', {
-                'agents': self.agents_stats,
-                'total_files': self.files_created,
-                'total_events': len(self.events),
-                'total_lines': self.total_lines
-            }, room=self.session_id)
-
+        self.agents_stats[agent_name]['files_created'] += 1
+        self.agents_stats[agent_name]['lines_written'] += lines_count
+        self.files_created += 1
+        self.total_lines += lines_count
+        self.log_event('file_created', f"📄 {agent_name} created {filename} ({lines_count} lines)", agent_name)
+        
+        # Emit real-time stats update
+        socketio.emit('agent_stats_update', {
+            'agent_name': agent_name,
+            'stats': self.agents_stats[agent_name],
+            'total_files': self.files_created,
+            'total_lines': self.total_lines
+        }, room=self.session_id)
+    
+    def log_memory_activity(self, activity_type, details):
+        """Log MemoryAgent specific activities"""
+        if 'MemoryAgent' not in self.agents_stats:
+            self.agents_stats['MemoryAgent'] = {
+                'patterns_learned': 0,
+                'patterns_reused': 0, 
+                'similarity_matches': 0,
+                'embeddings_created': 0,
+                'cache_hits': 0
+            }
+        
+        if activity_type == 'pattern_stored':
+            self.agents_stats['MemoryAgent']['patterns_learned'] += 1
+            self.log_event('memory', f"🧠 MemoryAgent learned new pattern (score: {details.get('score', 0)})", 'MemoryAgent')
+            
+        elif activity_type == 'pattern_reused':
+            self.agents_stats['MemoryAgent']['patterns_reused'] += 1
+            confidence = details.get('confidence', 0)
+            self.log_event('memory', f"🧠 MemoryAgent reused pattern (confidence: {confidence:.2f})", 'MemoryAgent')
+            
+        elif activity_type == 'similarity_found':
+            self.agents_stats['MemoryAgent']['similarity_matches'] += 1
+            
+        elif activity_type == 'embedding_created':
+            self.agents_stats['MemoryAgent']['embeddings_created'] += 1
+    
     def get_summary_stats(self):
-        """Return overall stats summary for the session."""
+        """Get comprehensive summary statistics"""
         duration = datetime.now() - self.start_time
+        
         return {
             'duration_seconds': duration.total_seconds(),
-            'duration_formatted': str(duration).split('.')[0],
+            'duration_formatted': str(duration).split('.')[0],  # Remove microseconds
             'total_events': len(self.events),
             'files_created': self.files_created,
             'total_lines': self.total_lines,
             'agents_stats': self.agents_stats,
-            'key_decisions': self.key_decisions[-5:],
-            'critical_reviews': self.critical_reviews[-3:],
+            'key_decisions': [
+                {
+                    'agent': kd['agent'], 
+                    'decision': kd['decision'][:50] + ('...' if len(kd['decision']) > 50 else ''),
+                    'time': kd['time'].strftime('%H:%M:%S')
+                } 
+                for kd in self.key_decisions[-5:]  # Last 5 decisions
+            ],
+            'critical_reviews': [
+                {
+                    'agent': cr['agent'],
+                    'file': cr['file'],
+                    'score': cr['score'],
+                    'time': cr['time'].strftime('%H:%M:%S')
+                }
+                for cr in self.critical_reviews[-3:]  # Last 3 critical reviews
+            ]
         }
 
 
 class MonitoredAgenticGraph(SimpleAgenticGraph):
-    """Agentic Graph with monitoring capabilities for web interface"""
+    """Agentic Graph with monitoring for Flask"""
     
-    def __init__(self, session_id, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, session_id, save_folder="local_output"):
         self.monitor = AgentMonitor(session_id)
-        self.session_id = session_id
-    
-    def run_agentic_pipeline(self, prompt: str, project_name: str = "agentic_project"):
-        """Run pipeline with monitoring"""
+        # Create timestamped folder for this session
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_save_path = f"{save_folder}/webapp_{timestamp}_{session_id[:8]}"
+        super().__init__(full_save_path)
         
-        self.monitor.log_event('system', f"🚀 Starting agentic pipeline: {prompt[:50]}...", 'System')
+        # Inject monitor into parent for real-time updates
+        self.monitor = self.monitor  # Make sure it's accessible
+        
+        # Replace agent methods with monitored versions
+        for agent in self.agents:
+            agent.original_make_decision = agent.make_decision
+            agent.original_review_code = agent.review_code
+            agent.original_improve_code = agent.improve_code
+            
+            agent.make_decision = lambda ctx, opts, a=agent: self._monitored_decision(a, ctx, opts)
+            agent.review_code = lambda f, c, a=agent: self._monitored_review(a, f, c)
+            agent.improve_code = lambda f, c, r, a=agent: self._monitored_improve(a, f, c, r)
+    
+    def _monitored_decision(self, agent, context, options):
+        """Monitored version of make_decision"""
+        self.monitor.log_event('thinking', f"{agent.name} is making a decision...", agent.name)
+        decision = agent.original_make_decision(context, options)
+        self.monitor.log_decision(agent.name, decision)
+        return decision
+    
+    def _monitored_review(self, agent, filename, code):
+        """Monitored version of review_code"""
+        self.monitor.log_event('reviewing', f"{agent.name} is reviewing {filename}...", agent.name)
+        review = agent.original_review_code(filename, code)
+        score = review.get('score', 0) if isinstance(review, dict) else 3
+        self.monitor.log_review(agent.name, filename, score)
+        return review
+    
+    def _monitored_improve(self, agent, filename, code, reviews):
+        """Monitored version of improve_code"""
+        if reviews:
+            self.monitor.log_event('improving', f"{agent.name} is improving {filename}...", agent.name)
+            improved = agent.original_improve_code(filename, code, reviews)
+            if improved and len(improved) > len(code):
+                improvement_desc = f"+{len(improved) - len(code)} chars"
+                self.monitor.log_improvement(agent.name, filename, improvement_desc)
+            return improved
+        return code
+    
+    def run_agentic_monitored(self, prompt: str, project_name: str = "WebProject"):
+        """Run agentic pipeline with monitoring"""
+        self.monitor.log_event('start', f"🚀 Starting Agentic Generation: {prompt}")
         
         try:
-            # Memory check
-            self.monitor.log_event('system', "🧠 Checking memory for similar projects...", 'MemoryAgent')
-            memory_result = self.memory_agent.find_similar_projects(prompt)
+            # Call parent method
+            result = self.run_agentic(prompt, project_name)
             
-            if memory_result.get('found'):
-                confidence = memory_result.get('confidence', 0)
-                self.monitor.log_event('memory_found', 
-                                     f"Found similar pattern (confidence: {confidence:.2f})", 
-                                     'MemoryAgent')
+            if result['success']:
+                # Log file creation stats
+                for filename, content in result.get('files', {}).items():
+                    lines_count = len(content.splitlines()) if content else 0
+                    # Determine which agent likely created this file
+                    if 'test' in filename.lower():
+                        agent = 'QAAgent'
+                    elif any(ext in filename for ext in ['.py', '.js', '.ts']):
+                        agent = 'DevAgent' 
+                    else:
+                        agent = 'ArchAgent'
+                    
+                    self.monitor.log_file_creation(agent, filename, lines_count)
+                
+                self.monitor.log_event('complete', f"✅ Generation Complete! {result['files_count']} files created")
+                
+                # Store final stats including summary
+                result['agent_stats'] = self.monitor.agents_stats
+                result['events'] = self.monitor.events
+                result['summary_stats'] = self.monitor.get_summary_stats()
+                
+                # Broadcast final summary
+                socketio.emit('generation_summary', result['summary_stats'], room=self.monitor.session_id)
+            else:
+                self.monitor.log_event('error', f"❌ Generation Failed: {result.get('error', 'Unknown error')}")
             
-            # Tech decisions
-            self.monitor.log_event('system', "🎯 Agents making tech stack decisions...", 'System')
-            tech_stack = self._monitored_tech_decisions(prompt, memory_result)
-            
-            # Architecture decisions
-            self.monitor.log_event('system', "🏗️ Agents deciding project architecture...", 'System')
-            file_structure = self._monitored_architecture_decisions(prompt, tech_stack, memory_result)
-            
-            # Code generation
-            self.monitor.log_event('system', "⚡ Agents generating code...", 'System')
-            generated_files = self._monitored_code_generation({
-                'prompt': prompt,
-                'tech_stack': tech_stack,
-                'file_structure': file_structure
-            })
-            
-            # Peer review
-            self.monitor.log_event('system', "📝 Agents reviewing each other's code...", 'System')
-            reviews = self._monitored_peer_review(generated_files)
-            
-            # Self-correction
-            self.monitor.log_event('system', "✨ Agents applying self-corrections...", 'System')
-            final_files = self._agent_self_correction(generated_files, reviews)
-            
-            # Save files
-            self.monitor.log_event('system', "💾 Saving project files...", 'System')
-            saved_files = self._monitored_save_files(final_files, project_name)
-            
-            # Store in memory
-            overall_score = self._calculate_project_score(reviews)
-            self.memory_agent.store_project_pattern(
-                prompt, tech_stack, list(final_files.keys()), overall_score
-            )
-            
-            self.monitor.log_event('complete', 
-                                 f"🎉 Pipeline complete! Score: {overall_score}/10", 
-                                 'System', 
-                                 {'score': overall_score, 'files_count': len(saved_files)})
-            
-            return {
-                'success': True,
-                'project_name': project_name,
-                'files_generated': len(saved_files),
-                'files_saved': len(saved_files),
-                'reviews': len(reviews),
-                'overall_score': overall_score,
-                'tech_stack': tech_stack,
-                'saved_files': saved_files
-            }
+            return result
             
         except Exception as e:
-            self.monitor.log_event('error', f"❌ Pipeline failed: {str(e)}", 'System')
-            raise
-    
-    def _monitored_tech_decisions(self, prompt, memory_result):
-        """Tech decisions with monitoring"""
-        for agent in self.agents:
-            # Simulate decision process
-            self.monitor.log_event('decision', 
-                                 f"Making tech stack decision for: {prompt[:30]}...", 
-                                 agent.name)
-        
-        result = self._agent_tech_decisions(prompt, memory_result)
-        
-        self.monitor.log_event('decision_complete', 
-                             f"Consensus: {result.get('framework', 'Unknown')} + {result.get('database', 'Unknown')}", 
-                             'System')
-        return result
-    
-    def _monitored_architecture_decisions(self, prompt, tech_stack, memory_result):
-        """Architecture decisions with monitoring"""
-        result = self._agent_architecture_decisions(prompt, tech_stack, memory_result)
-        
-        self.monitor.log_event('architecture', 
-                             f"Decided on {len(result)} files: {', '.join(result[:3])}...", 
-                             'System')
-        return result
-    
-    def _monitored_code_generation(self, context):
-        """Code generation with monitoring"""
-        generated_files = {}
-        file_structure = context['file_structure']
-        
-        for i, filename in enumerate(file_structure):
-            agent = self.agents[i % len(self.agents)]
-            
-            self.monitor.log_event('file_generation', 
-                                 f"Generating {filename}...", 
-                                 agent.name)
-            
-            try:
-                code = self._generate_file_content(agent, filename, context)
-                generated_files[filename] = code
-                
-                lines = len(code.split('\n'))
-                self.monitor.log_event('file_generated', 
-                                     f"Generated {filename} ({lines} lines)", 
-                                     agent.name,
-                                     {'filename': filename, 'lines': lines})
-                
-            except Exception as e:
-                self.monitor.log_event('error', 
-                                     f"Failed to generate {filename}: {str(e)}", 
-                                     agent.name)
-                generated_files[filename] = self._simple_fallback(filename, context)
-        
-        return generated_files
-    
-    def _monitored_peer_review(self, files):
-        """Peer review with monitoring"""
-        reviews = []
-        file_items = list(files.items())
-        
-        for filename, code in file_items[:5]:
-            reviewers = random.sample(self.agents, min(2, len(self.agents)))
-            
-            for agent in reviewers:
-                review = agent.review_code(filename, code)
-                reviews.append(review)
-                
-                self.monitor.log_event('review', 
-                                     f"Reviewed {filename}: score {review.get('score', 0)}/10", 
-                                     agent.name,
-                                     {'filename': filename, 'score': review.get('score', 0)})
-        
-        return reviews
-    
-    def _monitored_save_files(self, files, project_name):
-        """Save files with monitoring"""
-        saved_files = self._save_project_files(files, project_name)
-        
-        for filename in files.keys():
-            self.monitor.log_event('file_saved', 
-                                 f"Saved {filename}", 
-                                 'System')
-        
-        return saved_files
+            self.monitor.log_event('error', f"❌ Critical Error: {str(e)}")
+            return {'success': False, 'error': str(e)}
 
 
 @app.route('/')
 def index():
-    """Main landing page"""
+    """Home page with project creation"""
     return render_template('index.html')
 
-@app.route('/agentic')
-def agentic():
-    """Agentic generation page"""
-    return render_template('index_agentic.html')
 
-@app.route('/generate', methods=['POST'])
+@app.route('/agentic')
+def agentic_dashboard():
+    """Agentic Generation Dashboard"""
+    return render_template('agentic.html')
+
+
+@app.route('/api/generate', methods=['POST'])
 def generate_project():
-    """Generate project endpoint"""
-    
+    """Generate project using Simple Agentic Graph"""
     data = request.json
-    prompt = data.get('prompt', '').strip()
-    project_name = data.get('project_name', '').strip() or 'agentic_project'
+    prompt = data.get('prompt', '')
+    project_name = data.get('project_name', 'WebProject')
     
     if not prompt:
         return jsonify({'error': 'Prompt is required'}), 400
@@ -299,141 +289,163 @@ def generate_project():
     # Create session
     session_id = str(uuid.uuid4())
     
-    # Start generation in background
-    thread = threading.Thread(
-        target=run_generation_pipeline,
-        args=(session_id, prompt, project_name)
-    )
+    # Start generation in background thread
+    def generate():
+        try:
+            agentic = MonitoredAgenticGraph(session_id, "local_output")
+            result = agentic.run_agentic_monitored(prompt, project_name)
+            
+            # Store result with local path
+            active_sessions[session_id] = result
+            session_outputs[session_id] = {
+                'path': agentic.save_folder,
+                'files': result.get('files', {}),
+                'project_name': project_name
+            }
+            
+            # Notify completion
+            socketio.emit('generation_complete', result, room=session_id)
+            
+        except Exception as e:
+            error_result = {'success': False, 'error': str(e)}
+            active_sessions[session_id] = error_result
+            socketio.emit('generation_error', error_result, room=session_id)
+    
+    # Start background thread
+    thread = threading.Thread(target=generate)
     thread.daemon = True
     thread.start()
     
-    return jsonify({
-        'session_id': session_id,
-        'status': 'started',
-        'message': 'Generation pipeline started'
-    })
+    return jsonify({'session_id': session_id, 'status': 'started'})
 
-@socketio.on('join_session')
-def handle_join_session(data):
-    """Handle client joining a session"""
-    # Handle both string and dictionary formats
-    if isinstance(data, str):
-        session_id = data
-    else:
-        session_id = data.get('session_id') if data else None
-    
-    if session_id:
-        join_room(session_id)
-        emit('joined', {'session_id': session_id})
 
-def run_generation_pipeline(session_id, prompt, project_name):
-    """Run the generation pipeline in background"""
-    
-    try:
-        # Create monitored agentic graph
-        agentic_graph = MonitoredAgenticGraph(
-            session_id, 
-            project_folder="local_output",
-            target_score=6.0
-        )
-        
-        # Store session
-        active_sessions[session_id] = agentic_graph
-        
-        # Run pipeline
-        result = agentic_graph.run_agentic_pipeline(prompt, project_name)
-        
-        # Store result
-        session_outputs[session_id] = {
-            'result': result,
-            'project_name': project_name,
-            'completed_at': datetime.now().isoformat()
-        }
-        
-        # Broadcast final summary stats for review UI
-        try:
-            summary = agentic_graph.monitor.get_summary_stats()
-            socketio.emit('generation_summary', summary, room=session_id)
-        except Exception:
-            pass
-
-        # Notify completion
-        socketio.emit('generation_complete', {
-            'session_id': session_id,
-            'project_name': project_name,
-            'files_count': (len(result.get('saved_files', {})) if isinstance(result, dict) and 'saved_files' in result else result.get('files_generated', 0) if isinstance(result, dict) else 0),
-            'result': result
-        }, room=session_id)
-        
-    except Exception as e:
-        # Notify error
-        socketio.emit('generation_error', {
-            'session_id': session_id,
-            'error': str(e)
-        }, room=session_id)
-
-@app.route('/download/<session_id>')
+@app.route('/api/download/<session_id>')
 def download_project(session_id):
     """Download generated project as ZIP"""
-    
     if session_id not in session_outputs:
-        return jsonify({'error': 'Session not found or not completed'}), 404
+        return jsonify({'error': 'Session not found'}), 404
     
-    output = session_outputs[session_id]
-    project_name = output['project_name']
+    output_info = session_outputs[session_id]
+    project_name = output_info['project_name']
     
-    # Create ZIP
-    zip_path = Path("local_output") / f"{project_name}.zip"
-    project_path = Path("local_output") / project_name
+    # Build absolute path to project files
+    # The path is: ROOT/local_output/webapp_TIMESTAMP_SESSIONID/PROJECT_NAME/
+    project_path = Path(ROOT) / output_info['path'] / project_name
+    
+    print(f"🔍 Looking for project at: {project_path}")
+    print(f"📂 Directory exists: {project_path.exists()}")
+    if project_path.exists():
+        files = list(project_path.rglob('*'))
+        print(f"📁 Found {len(files)} files/directories")
     
     if not project_path.exists():
-        return jsonify({'error': 'Project files not found'}), 404
+        # Try alternative paths
+        alt_paths = [
+            Path(ROOT) / output_info['path'],  # Without project name
+            Path(ROOT) / "local_output" / project_name,  # Direct in local_output
+            Path("local_output") / project_name  # Relative path
+        ]
+        
+        for alt_path in alt_paths:
+            print(f"🔍 Trying alternative: {alt_path}")
+            if alt_path.exists():
+                project_path = alt_path
+                break
+        else:
+            print(f"❌ Project files not found on disk")
+            print(f"   Expected: {Path(ROOT) / output_info['path'] / project_name}")
+            print(f"   Output info: {output_info}")
+            
+            # Fallback: create ZIP from files in memory
+            if 'files' in output_info and output_info['files']:
+                print(f"💾 Creating ZIP from in-memory files ({len(output_info['files'])} files)")
+                
+                zip_folder = Path(ROOT) / "local_output" / "downloads"
+                zip_folder.mkdir(parents=True, exist_ok=True)
+                zip_path = zip_folder / f"{session_id[:8]}_{project_name}.zip"
+                
+                try:
+                    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        for filename, content in output_info['files'].items():
+                            zipf.writestr(filename, content)
+                            print(f"   📄 Added from memory: {filename}")
+                    
+                    print(f"✅ ZIP created from memory: {zip_path}")
+                    return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
+                    
+                except Exception as e:
+                    print(f"❌ Memory ZIP creation failed: {e}")
+                    return jsonify({'error': f'ZIP creation failed: {str(e)}'}), 500
+            else:
+                return jsonify({'error': f'No files found in memory either'}), 404
+    
+    # Create ZIP file
+    zip_folder = Path(ROOT) / "local_output" / "downloads"
+    zip_folder.mkdir(parents=True, exist_ok=True)
+    zip_path = zip_folder / f"{session_id[:8]}_{project_name}.zip"
+    
+    print(f"📦 Creating ZIP: {zip_path}")
     
     try:
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            file_count = 0
             for file_path in project_path.rglob('*'):
-                if file_path.is_file():
+                if file_path.is_file() and not file_path.name.startswith('.'):
                     arcname = file_path.relative_to(project_path)
                     zipf.write(file_path, arcname)
+                    print(f"   📄 Added: {arcname}")
+                    file_count += 1
         
-        return send_file(
-            zip_path,
-            as_attachment=True,
-            download_name=f"{project_name}.zip",
-            mimetype='application/zip'
-        )
+        print(f"✅ ZIP created successfully: {zip_path} ({file_count} files)")
+        print(f"📥 ZIP size: {zip_path.stat().st_size / 1024:.1f} KB")
+        
+        return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
         
     except Exception as e:
-        return jsonify({'error': f'Failed to create ZIP: {str(e)}'}), 500
+        print(f"❌ ZIP creation failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'ZIP creation failed: {str(e)}'}), 500
 
-@app.route('/api/session/<session_id>/status')
+
+@app.route('/api/status/<session_id>')
 def get_session_status(session_id):
     """Get session status"""
-    
-    status = {
-        'session_id': session_id,
-        'active': session_id in active_sessions,
-        'completed': session_id in session_outputs
-    }
-    
     if session_id in active_sessions:
-        agentic_graph = active_sessions[session_id]
-        status['agents_stats'] = agentic_graph.monitor.agents_stats
-        status['events_count'] = len(agentic_graph.monitor.events)
-    
-    if session_id in session_outputs:
-        status['result'] = session_outputs[session_id]['result']
-    
-    return jsonify(status)
+        return jsonify(active_sessions[session_id])
+    return jsonify({'status': 'running'})
+
+
+@socketio.on('connect')
+def handle_connect():
+    print(f'Client connected')
+
+
+@socketio.on('disconnect')  
+def handle_disconnect():
+    print(f'Client disconnected')
+
+
+@socketio.on('join_session')
+def handle_join_session(data):
+    """Handle client joining a session room"""
+    from flask_socketio import join_room
+    session_id = data['session_id']
+    join_room(session_id)
+    print(f'✅ Client joined session room: {session_id}')
+    emit('session_joined', {'session_id': session_id})
 
 
 if __name__ == '__main__':
-    print("🚀 Starting AgentForge - Clean Agentic Edition")
-    print("🌐 Web Interface: http://localhost:5001")
-    print("📊 Real-time monitoring with SocketIO")
-    print("🤖 Multi-agent collaboration system")
+    # Create necessary local directories
+    (ROOT / "local_output").mkdir(parents=True, exist_ok=True)
+    (ROOT / "local_output" / "downloads").mkdir(parents=True, exist_ok=True)
     
-    # Make sure output directory exists
-    Path("local_output").mkdir(exist_ok=True)
+    print("🚀 Starting Simple Agentic Flask App...")
+    print("🤖 4 Agents: DevAgent, ArchAgent, QAAgent + MemoryAgent")
+    print("🧠 MemoryAgent: RAG with vector embeddings for pattern learning")
+    print("📊 Real-time monitoring enabled")
+    print("📁 Local output: local_output/ (gitignored)")
+    print("🔥 Ready at: http://localhost:5001")
     
-    socketio.run(app, debug=True, host='0.0.0.0', port=5001)
+    socketio.run(app, host='0.0.0.0', port=5001, debug=True)
