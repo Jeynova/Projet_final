@@ -69,22 +69,35 @@ Return STRICT JSON like:
             mini['source'] = 'codegen_inline'
             contract = mini
 
-        system_prompt = f"""You are an expert full-stack developer. Generate COMPLETE, WORKING code consistent with the chosen stack.
+        system_prompt = f"""You are a SENIOR FULL-STACK ARCHITECT. Generate COMPLETE, PRODUCTION-READY applications.
 
-Quality guardrails:
-- proper structure & separation
-- error handling & logging
-- auth & authorization when requested
-- env vars, validation, CORS, rate limits
-- responsive UI with feedback
-- docs + setup + realistic sample data
+CRITICAL REQUIREMENTS:
+- COMPREHENSIVE implementation (50-200+ lines per file)
+- Full authentication & authorization systems
+- Complete error handling & logging
+- Input validation & sanitization  
+- Database models with relationships
+- API endpoints with full CRUD operations
+- Responsive UI with state management
+- Security middleware (CORS, helmet, rate limiting)
+- Environment configuration
+- Docker containerization
+- Comprehensive documentation
+- Test suites and fixtures
+
+QUALITY STANDARDS:
+- Code should be IMMEDIATELY DEPLOYABLE
+- Include ALL necessary files for production
+- Generate 15-35 files minimum for moderate complexity
+- Each file should contain COMPLETE, WORKING implementation
+- No placeholders or "TODO" comments
 
 Return STRICT JSON:
 {{
-  "files": {{"path":"content", "...":"..."}},
-  "setup_instructions": ["..."],
-  "run_commands": ["..."],
-  "deployment_notes": ["..."]
+  "files": {{"path":"complete_working_code", "...":"..."}},
+  "setup_instructions": ["detailed_setup_steps"],
+  "run_commands": ["actual_run_commands"],
+  "deployment_notes": ["production_deployment_guide"]
 }}"""
 
         fb = []
@@ -104,8 +117,32 @@ Return STRICT JSON:
         contract_block = ""
         if contract:
             req_files = "\n".join(f"- {p}" for p in (contract.get('files') or [])[:60])
-            req_eps   = "\n".join(f"- {e.get('method','GET')} {e.get('path','')}" for e in (contract.get('endpoints') or [])[:60])
-            req_tabs  = "\n".join(f"- {t.get('name','')}" for t in (contract.get('tables') or [])[:40])
+            
+            # Handle endpoints safely - could be list of dicts or list of strings
+            endpoints = contract.get('endpoints') or []
+            req_eps_list = []
+            for e in endpoints[:60]:
+                if isinstance(e, dict):
+                    # Standard format: {"method": "GET", "path": "/api/health"}
+                    method = e.get('method', 'GET')
+                    path = e.get('path', '')
+                    req_eps_list.append(f"- {method} {path}")
+                elif isinstance(e, str):
+                    # String format: "GET /api/health" or just "/api/health"
+                    req_eps_list.append(f"- {e}")
+                else:
+                    req_eps_list.append(f"- {str(e)}")
+            req_eps = "\n".join(req_eps_list)
+            
+            # Handle tables safely
+            tables = contract.get('tables') or []
+            req_tabs_list = []
+            for t in tables[:40]:
+                if isinstance(t, dict):
+                    req_tabs_list.append(f"- {t.get('name', str(t))}")
+                else:
+                    req_tabs_list.append(f"- {str(t)}")
+            req_tabs = "\n".join(req_tabs_list)
             contract_block = f"""
 ### IMPLEMENT THIS CONTRACT (mode={mode}, source={contract.get('source','llm')})
 REQUIRED FILES:
@@ -119,21 +156,85 @@ REQUIRED TABLES:
 """
         strict_line = "\nYou MUST output every required file and implement every required endpoint." if mode == 'strict' else ""
 
-        user_prompt = f"""Project: {prompt}
+        user_prompt = f"""SENIOR ARCHITECT TASK: Build a COMPLETE production application
 
-🎯 TEAM DECISIONS:
-{chr(10).join([f"- {t.get('role','?')}: {t.get('name','?')} (Reason: {t.get('reasoning','')})" for t in tech_stack])}
+PROJECT: {prompt}
 
-🏗️ ARCHITECTURE:
-Structure: {architecture.get('project_structure',{})}
-Key Components: {', '.join(architecture.get('key_components',[]))}
+🎯 TECHNOLOGY STACK DECISIONS:
+{chr(10).join([f"- {t.get('role','?')}: {t.get('name','?')} (Rationale: {t.get('reasoning','')})" for t in tech_stack])}
+
+🏗️ DETAILED ARCHITECTURE REQUIREMENTS:
+Project Structure: {architecture.get('project_structure',{})}
+Core Components: {', '.join(architecture.get('key_components',[]))}
+Required Files: {len(architecture.get('required_files', []))} minimum
+Data Flow: {architecture.get('data_flow', 'Not specified')}
+
 {memory_block}
-MEMORY COACH NOTES (follow pragmatically):
-- {chr(10).join(coach_notes[:8])}{target_block}
+
+🎯 PRODUCTION REQUIREMENTS - IMPLEMENT ALL:
+
+**AUTHENTICATION & SECURITY:**
+- Complete JWT-based auth system (login, register, logout, password reset)
+- Role-based access control with middleware
+- Input validation and sanitization on all endpoints
+- CORS configuration, rate limiting, helmet security headers
+- Password hashing with bcrypt/argon2
+
+**DATABASE & MODELS:**
+- Complete data models with relationships and constraints
+- Database migrations and seed data
+- Connection pooling and error handling
+- Transaction management for complex operations
+
+**API LAYER:**
+- Full CRUD operations for all entities
+- RESTful endpoints with proper HTTP status codes  
+- Request/response validation with schemas
+- Error handling middleware with structured responses
+- API documentation (OpenAPI/Swagger)
+- Health check and monitoring endpoints
+
+**FRONTEND (if applicable):**
+- Complete responsive UI with state management
+- Loading states, error boundaries, notifications
+- Form validation and user feedback
+- Routing and navigation
+- Component library with reusable elements
+
+**INFRASTRUCTURE:**
+- Docker multi-stage builds for production
+- Environment configuration (.env files)
+- Logging with structured output (Winston/Python logging)
+- Error tracking and performance monitoring
+- CI/CD configuration files
+
+**TESTING & QUALITY:**
+- Unit tests for core business logic
+- Integration tests for API endpoints
+- Test fixtures and mock data
+- Code coverage reporting
+
+**DEPLOYMENT:**
+- Production-ready docker-compose.yml
+- Kubernetes manifests (if complex)
+- Environment-specific configurations
+- Deployment scripts and documentation
+
+MEMORY COACHING (implement these specific patterns):
+{chr(10).join([f"- {note}" for note in coach_notes[:8]])}
+{target_block}
 
 {contract_block}{strict_line}{feedback_block}
 
-Deliver COMPLETE, runnable code in the JSON format specified."""
+🚀 IMPLEMENTATION STANDARDS:
+- Each file should be 50-200+ lines of complete, working code
+- NO placeholders, TODOs, or incomplete implementations
+- Generate 15-35+ files for moderate complexity projects
+- Include comprehensive error handling and logging
+- Use production-quality patterns and best practices
+- Code should be immediately deployable
+
+CRITICAL: This is a SENIOR DEVELOPER task. Generate production-ready applications that teams can deploy immediately."""
         fallback_code = {
             "files":{
                 "backend/app.js":"// minimal backend placeholder\nconst express=require('express');const app=express();app.get('/api/health',(_,res)=>res.json({status:'ok'}));app.listen(5000);",

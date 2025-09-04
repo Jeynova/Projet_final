@@ -380,6 +380,13 @@ class UIAwareOrchestrator:
             from adaptaters.rag_snippets.manager import RAGSnippetManager
             rag_store = RAGSnippetManager()
             self.orchestrator = PureIntelligenceOrchestrator(rag_store)
+            print("🚀 Enhanced Super-LLM Orchestrator initialized with:")
+            print("   💾 Production-Quality CodeGenAgent")
+            print("   🏗️ Comprehensive ArchitectureAgent")
+            print("   ✅ Advanced ValidationAgent") 
+            print("   📐 Enhanced ContractAgent")
+            print("   🎓 Template-Aware LearningMemoryAgent")
+            print("   🎯 Pattern Recognition RAG System")
         else:
             self.orchestrator = None
 
@@ -455,7 +462,24 @@ class UIAwareOrchestrator:
                     })
 
             elif name == 'EvaluationAgent':
-                msg = f"📊 Score: {state.get('evaluation',{}).get('overall_score','N/A')}/10"
+                evaluation = state.get('evaluation', {})
+                overall_score = evaluation.get('overall_score', 'N/A')
+                production_ready = evaluation.get('deployment_readiness', 'unknown')
+                files_count = evaluation.get('files_generated', 0)
+                
+                msg = f"📊 Comprehensive evaluation complete - Score: {overall_score}/10"
+                
+                emit_to_session('evaluation_completed', {
+                    'overall_score': overall_score,
+                    'production_readiness': evaluation.get('production_readiness', 0),
+                    'architecture_quality': evaluation.get('architecture_quality', 0),
+                    'code_quality': evaluation.get('code_quality', 0),
+                    'deployment_readiness': production_ready,
+                    'files_generated': files_count,
+                    'recommendation': evaluation.get('recommendation', 'improve'),
+                    'key_strengths': evaluation.get('key_strengths', []),
+                    'improvement_areas': evaluation.get('improvement_areas', [])
+                })
 
             monitor.agent_completed(name, msg, 0.0)
 

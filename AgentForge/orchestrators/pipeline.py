@@ -31,23 +31,48 @@ from core.scheduling import schedule_agents
 # 🎯 REACTIVE ORCHESTRATOR (event/queue loop)
 # ──────────────────────────────────────────────────────────────────────────────
 class PureIntelligenceOrchestrator:
-    """LLM-only contract + validation pipeline with reactive agent scheduling"""
+    """ENHANCED Super-LLM orchestrator with intelligent model allocation"""
     def __init__(self, rag_store=None):
+        from core.model_selector import model_selector
+        
+        # Initialize with enhanced memory and template recognition
+        self.learning_memory = LearningMemoryAgent(rag_store)
+        
         self.agents = [
-            LearningMemoryAgent(rag_store),
+            self.learning_memory,
             MultiPerspectiveTechAgent(),
             StackResolverAgent(),       # resolve "A or B"
             CapabilityAgent(),
-            ContractAgent(),
+            ContractAgent(),            # Enhanced with comprehensive contracts
             ContractPresenceGuard(),    # ensure a contract exists
-            ArchitectureAgent(),
-            CodeGenAgent(),
+            ArchitectureAgent(),        # Enhanced with production analysis
+            CodeGenAgent(),             # Enhanced for complete code generation
             DatabaseAgent(),
             DeploymentAgent(),
-            ValidateAgent(),
+            ValidateAgent(),            # Enhanced with comprehensive validation
             ValidationRouter(),
             EvaluationAgent()
         ]
+        
+        # Show intelligent model allocation
+        agent_names = [agent.__class__.__name__ for agent in self.agents]
+        model_allocation = model_selector.optimize_model_allocation(agent_names)
+        
+        print("🎭 Enhanced Super-LLM Orchestrator initialized:")
+        print("   💾 Production-quality CodeGenAgent")
+        print("   🏗️ Comprehensive ArchitectureAgent") 
+        print("   ✅ Advanced ValidationAgent")
+        print("   📐 Enhanced ContractAgent")
+        print("   🎓 Template-aware LearningMemoryAgent")
+        
+        # Show performance recommendations
+        recommendations = model_selector.get_performance_recommendations()
+        if recommendations:
+            print("\n📈 Performance Recommendations:")
+            for rec in recommendations:
+                print(f"   {rec}")
+        else:
+            print("   🚀 Optimal model setup detected!")
         # registry by id and by class name (for ValidationRouter)
         self.registry = {a.id: a for a in self.agents}
         for a in self.agents:

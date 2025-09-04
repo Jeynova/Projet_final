@@ -1,0 +1,10 @@
+Improved docker-compose file with corrected validation:
+
+default:
+   node: 
+     build: .
+     command: npm start
+     depends_on:
+       - mongo
+  mongo: 
+     image: mongo:latest

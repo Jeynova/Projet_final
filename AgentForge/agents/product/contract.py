@@ -36,25 +36,68 @@ class ContractAgent(LLMBackedMixin):
 
         tech_stack = state.get('tech_stack', [])
         caps = state.get('capabilities', {})
-        sys_p = """Given the chosen stack and capabilities, propose a PRACTICAL delivery CONTRACT.
+        sys_p = """You are a SENIOR PROJECT MANAGER defining a comprehensive delivery contract.
 
-Baseline boilerplate ALL web projects should ship (stack-agnostic):
-- docker-compose.yml with backend, frontend and db (or stub)
-- .env.example with required vars
-- README.md with Quickstart (≤3 commands), health URL, Docker run
-- Makefile or scripts for dev/build/test
-- /api/health endpoint
-- /docs (Swagger/OpenAPI or docs page)
-- scripts/dev.sh, scripts/build.sh, scripts/test.sh (or npm equivalents)
-- .devcontainer/devcontainer.json (optional; include or state "omitted")
+Analyze the chosen technology stack and required capabilities to create a COMPLETE production contract.
 
-Return STRICT JSON:
-{
-  "files": ["backend/app.*", "backend/routes/*.js", "frontend/src/App.*", "docker-compose.yml", ".env.example", "README.md", "Makefile", ".devcontainer/devcontainer.json", "scripts/dev.sh", "scripts/build.sh", "scripts/test.sh"],
-  "endpoints": [{"method":"GET","path":"/api/health"},{"method":"GET","path":"/docs"}],
-  "tables": [{"name":"users"}]
-}
-Keep ≤ 30 files. Match file extensions to the chosen backend."""
+**MANDATORY BASELINE (all projects):**
+- docker-compose.yml: Multi-service orchestration (backend, frontend, database, cache)
+- .env.example: ALL environment variables with descriptions
+- README.md: Professional documentation (quickstart ≤3 commands, API docs, deployment)
+- /api/health: Health check with database connectivity verification
+- /docs: Complete API documentation (Swagger/OpenAPI)
+- Build automation: Makefile or package.json with dev/build/test/deploy scripts
+- Development: .devcontainer/devcontainer.json for consistent development environment
+
+**PRODUCTION REQUIREMENTS (expand based on complexity):**
+
+For AUTHENTICATION projects:
+- User registration, login, logout, password reset endpoints
+- JWT token management and refresh
+- Role-based access control middleware
+- Password hashing and validation
+
+For CRUD applications:
+- Complete CRUD endpoints for all entities
+- Input validation and sanitization
+- Database models with relationships
+- Migration scripts and seed data
+
+For COMPLEX projects (e-commerce, social, enterprise):
+- Admin panel interfaces and endpoints
+- Payment processing integration
+- File upload and media management
+- Email notification systems
+- Real-time features (WebSocket endpoints)
+- Analytics and reporting endpoints
+- Advanced search and filtering
+
+**DATABASE CONTRACT:**
+- All entity tables with proper relationships
+- Indexes for performance optimization
+- Migration files for schema management
+- Seed data for development and testing
+
+**INFRASTRUCTURE CONTRACT:**
+- Docker multi-stage production builds
+- CI/CD configuration (GitHub Actions/GitLab CI)
+- Environment-specific configurations
+- Monitoring and logging setup
+- Security configurations (CORS, rate limiting)
+
+Return COMPREHENSIVE JSON contract:
+{{
+  "files": ["ALL files needed for production deployment"],
+  "endpoints": [{{"method":"GET|POST|PUT|DELETE","path":"/api/path","description":"purpose"}}],
+  "tables": [{{"name":"table_name","purpose":"business_purpose"}}],
+  "infrastructure": ["docker-compose.yml", ".env.example", "Dockerfile", "CI/CD configs"],
+  "security": ["authentication endpoints", "middleware files", "security configs"],
+  "documentation": ["README.md", "API docs", "deployment guides"],
+  "testing": ["test files", "fixtures", "test configurations"]
+}}
+
+Aim for 20-50 files for moderate complexity, 50+ for complex projects.
+Match file extensions to chosen tech stack. Be COMPREHENSIVE - this is the delivery contract."""
         user_p = f"TECH_STACK:\n{tech_stack}\n\nCAPABILITIES:\n{caps}\n"
         fallback = {
             "files":["backend/app.js","frontend/src/App.js","docker-compose.yml",".env.example","README.md","Makefile"],

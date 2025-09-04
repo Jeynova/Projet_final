@@ -2,8 +2,9 @@ import os
 from typing import Optional, Dict, Any
 
 class LLMClient:
-    def __init__(self):
+    def __init__(self, preferred_model=None):
         self.provider = os.getenv("AGENTFORGE_LLM", "mock")
+        self.preferred_model = preferred_model  # Agent-specific model preference
 
     def extract_json(self, system_prompt: str, user_prompt: str) -> Optional[Dict[str, Any]]:
         if self.provider == "mock":
@@ -32,7 +33,8 @@ class LLMClient:
             try:
                 import requests, json
                 base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-                model = os.getenv("OLLAMA_MODEL", "llama3.1:latest")
+                # Use preferred model if specified, otherwise fall back to env var
+                model = self.preferred_model or os.getenv("OLLAMA_MODEL", "llama3.1:latest")
                 print(f"🔧 DEBUG Ollama: base={base}, model={model}")
                 payload = {
                     "model": model,

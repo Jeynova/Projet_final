@@ -63,20 +63,53 @@ class ValidateAgent(LLMBackedMixin):
             except Exception:
                 previews[name] = ""
 
-        system_prompt = f"""You are a senior reviewer. Validate the generated project.
+        system_prompt = f"""You are a SENIOR CODE REVIEWER with expertise in production systems validation.
 
-BASELINE REQUIREMENTS (stack-agnostic):
-- docker-compose.yml present & references (or stubs) backend/frontend/db services
-- .env.example present with all env vars referenced by code/compose
-- README.md includes Quickstart (≤3 commands), health URL, Docker run
-- Makefile or scripts (or equivalent npm scripts) for dev/build/test
-- /api/health endpoint reachable in backend code
-- /docs route (Swagger/OpenAPI or docs page)
-- .devcontainer/devcontainer.json (optional but preferred)
+COMPREHENSIVE VALIDATION CRITERIA:
 
-CONTRACT (if present): verify declared files & endpoints exist.
+**BASELINE PRODUCTION REQUIREMENTS:**
+- docker-compose.yml: Complete multi-service orchestration (backend, frontend, database, redis/cache)
+- .env.example: ALL environment variables with descriptions and example values
+- README.md: Professional documentation with quickstart (≤3 commands), API docs, deployment guide
+- Health monitoring: /api/health endpoint with database connectivity check
+- API documentation: /docs route with complete OpenAPI/Swagger specification
+- Development environment: .devcontainer/devcontainer.json for consistent development
+- Build automation: Makefile or package.json scripts (dev, build, test, deploy)
 
-Return STRICT JSON:
+**CODE QUALITY STANDARDS:**
+- Authentication: Complete JWT/session-based auth with proper middleware
+- Input validation: All endpoints have request validation and sanitization
+- Error handling: Structured error responses with proper HTTP status codes
+- Database: Proper models, relationships, migrations, and connection management
+- Security: CORS, rate limiting, helmet, password hashing, input sanitization
+- Logging: Structured logging throughout the application
+- Testing: Unit tests for core business logic and API endpoints
+
+**ARCHITECTURE VALIDATION:**
+- Separation of concerns: Clear layers (controllers, services, models)
+- Configuration management: Environment-based configuration
+- Database design: Proper relationships, constraints, indexes
+- API design: RESTful endpoints following HTTP standards
+- Frontend (if applicable): Component architecture, state management, routing
+
+**PRODUCTION READINESS:**
+- Docker: Multi-stage builds optimized for production
+- Database: Production-ready configuration with connection pooling
+- Performance: Caching strategies, query optimization
+- Monitoring: Health checks, metrics, logging aggregation
+- Deployment: CI/CD configuration, environment management
+
+**CONTRACT COMPLIANCE:**
+If contract exists, verify ALL declared files and endpoints are implemented with complete functionality.
+
+**SCORING CRITERIA:**
+- 9-10: Production-ready, comprehensive implementation, excellent architecture
+- 7-8: Good implementation, minor issues, mostly production-ready
+- 5-6: Basic functionality, significant improvements needed
+- 3-4: Incomplete implementation, major issues
+- 0-2: Non-functional, critical issues
+
+Return STRICT JSON validation report:
 {{
   "status": "valid|issues|invalid",
   "score": 0-10,
@@ -84,20 +117,25 @@ Return STRICT JSON:
   "security_score": 0-10,
   "architecture_score": 0-10,
   "ux_score": 0-10,
-  "issues": ["..."],
-  "suggestions": ["..."],
-  "strengths": ["..."],
-  "missing_files": ["paths required by the contract that are missing"],
-  "missing_endpoints": ["METHOD /path"],
-  "missing_baseline": ["docker-compose.yml",".env.example","README.md","/api/health","/docs","Makefile|scripts",".devcontainer/devcontainer.json"],
-  "coverage": {{"files_percent": 0-100, "endpoints_percent": 0-100}}
+  "production_readiness_score": 0-10,
+  "issues": ["specific technical issues found"],
+  "suggestions": ["concrete improvement recommendations"],
+  "strengths": ["well-implemented aspects"],
+  "security_concerns": ["security vulnerabilities or missing protections"],
+  "missing_files": ["paths required by contract that are missing"],
+  "missing_endpoints": ["METHOD /path missing from contract"],
+  "missing_baseline": ["production requirements not met"],
+  "code_quality_issues": ["code quality problems found"],
+  "architecture_issues": ["architectural problems identified"],
+  "coverage": {{"files_percent": 0-100, "endpoints_percent": 0-100}},
+  "recommendations": {{
+    "immediate": ["critical fixes needed"],
+    "short_term": ["important improvements"],
+    "long_term": ["architectural enhancements"]
+  }}
 }}
 
-Rules:
-- Be STRICT: only score ≥8 if production-ready and baseline satisfied.
-- If CONTRACT is non-empty, prefer manifest-based verification. Use previews when helpful to infer endpoints/files.
-- If uncertain an endpoint/file exists, list it as missing rather than assume.
-"""
+BE STRICT: Only score ≥8 if truly production-ready. Identify specific issues and provide actionable feedback."""
 
         user_prompt = f"""BACKEND: {backend.get('name','Unknown')}
 
