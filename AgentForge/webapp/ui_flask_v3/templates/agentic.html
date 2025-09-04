@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentForge - Simple Agentic Generation</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .agents-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .agent-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .agent-card h3 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+        
+        .input-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .input-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .monitoring-section {
+            display: none;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .monitoring-section.active {
+            display: block;
+        }
+        
+        .agent-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .agent-stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .agent-stat h4 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .events-log {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .events-log h3 {
+            margin-bottom: 15px;
+            color: #4ecdc4;
+        }
+        
+        .event {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #4ecdc4;
+        }
+        
+        .event.decision {
+            border-left-color: #ff6b6b;
+        }
+        
+        .event.review {
+            border-left-color: #45b7d1;
+        }
+        
+        .event.improvement {
+            border-left-color: #96ceb4;
+        }
+        
+        .event.error {
+            border-left-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+        }
+        
+        .event-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            float: right;
+        }
+        
+        .download-section {
+            display: none;
+            background: rgba(0, 255, 0, 0.2);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        
+        .download-section.active {
+            display: block;
+        }
+        
+        .download-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #96ceb4, #4ecdc4);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-thinking { background: #ffc107; }
+        .status-deciding { background: #ff6b6b; }
+        .status-reviewing { background: #45b7d1; }
+        .status-improving { background: #96ceb4; }
+        .status-complete { background: #28a745; }
+        .status-error { background: #ff4757; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AgentForge</h1>
+            <p>Simple Agentic Generation with Real AI Agents</p>
+        </div>
+        
+        <div class="agents-info">
+            <div class="agent-card">
+                <h3>👨‍💻 DevAgent</h3>
+                <p>Senior Developer<br>Model: codellama:7b</p>
+            </div>
+            <div class="agent-card">
+                <h3>🏗️ ArchAgent</h3>
+                <p>Solution Architect<br>Model: mistral:7b</p>
+            </div>
+            <div class="agent-card">
+                <h3>🔍 QAAgent</h3>
+                <p>Quality Assurance<br>Model: qwen2.5-coder:7b</p>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="prompt">Project Description:</label>
+                <textarea id="prompt" placeholder="Describe your project... e.g., 'Create a task management API with user authentication and CRUD operations'"></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="project_name">Project Name:</label>
+                <input type="text" id="project_name" placeholder="MyProject" value="AgenticProject">
+            </div>
+            
+            <button id="generate-btn" class="generate-btn">
+                🚀 Start Agentic Generation
+            </button>
+        </div>
+        
+        <div id="monitoring-section" class="monitoring-section">
+            <h2>🤖 Agent Activity Monitor</h2>
+            
+            <div class="agent-stats" id="agent-stats">
+                <!-- Agent stats will be populated dynamically -->
+            </div>
+            
+            <div class="events-log">
+                <h3>📊 Real-time Agent Events</h3>
+                <div id="events-container">
+                    <!-- Events will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <div id="download-section" class="download-section">
+            <h2>🎉 Generation Complete!</h2>
+            <p>Your project has been generated by the agent team.</p>
+            <br>
+            <a id="download-btn" class="download-btn" href="#" download>
+                📦 Download Project ZIP
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentSessionId = null;
+        
+        // Elements
+        const generateBtn = document.getElementById('generate-btn');
+        const monitoringSection = document.getElementById('monitoring-section');
+        const downloadSection = document.getElementById('download-section');
+        const eventsContainer = document.getElementById('events-container');
+        const agentStats = document.getElementById('agent-stats');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Agent statistics tracking
+        const agentStatsData = {
+            'DevAgent': { decisions: 0, reviews: 0, improvements: 0 },
+            'ArchAgent': { decisions: 0, reviews: 0, improvements: 0 },
+            'QAAgent': { decisions: 0, reviews: 0, improvements: 0 }
+        };
+        
+        // Generate button click
+        generateBtn.addEventListener('click', async () => {
+            const prompt = document.getElementById('prompt').value.trim();
+            const projectName = document.getElementById('project_name').value.trim() || 'AgenticProject';
+            
+            if (!prompt) {
+                alert('Please enter a project description');
+                return;
+            }
+            
+            // Disable button and show monitoring
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🤖 Agents Working...';
+            monitoringSection.classList.add('active');
+            downloadSection.classList.remove('active');
+            
+            // Clear previous events and stats
+            eventsContainer.innerHTML = '';
+            resetAgentStats();
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, project_name: projectName })
+                });
+                
+                const result = await response.json();
+                currentSessionId = result.session_id;
+                
+                // Join session for real-time updates
+                socket.emit('join_session', { session_id: currentSessionId });
+                
+            } catch (error) {
+                console.error('Error starting generation:', error);
+                addEvent('error', 'Failed to start generation');
+                resetUI();
+            }
+        });
+        
+        // Socket event handlers
+        socket.on('agent_event', (event) => {
+            addEvent(event.type, event.message, event.agent, event.timestamp);
+            
+            // Update agent stats
+            if (event.agent && event.type in agentStatsData[event.agent]) {
+                agentStatsData[event.agent][event.type]++;
+                updateAgentStats();
+            }
+        });
+        
+        socket.on('generation_complete', (result) => {
+            addEvent('complete', `🎉 Generation Complete! ${result.files_count} files generated`);
+            
+            // Show download section
+            downloadSection.classList.add('active');
+            downloadBtn.href = `/api/download/${currentSessionId}`;
+            
+            resetUI();
+        });
+        
+        socket.on('generation_error', (error) => {
+            addEvent('error', `❌ Generation Failed: ${error.error || 'Unknown error'}`);
+            resetUI();
+        });
+        
+        // Helper functions
+        function addEvent(type, message, agent = null, timestamp = null) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${type}`;
+            
+            const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+            const agentStr = agent ? `[${agent}] ` : '';
+            
+            eventDiv.innerHTML = `
+                <span class="status-indicator status-${type}"></span>
+                ${agentStr}${message}
+                <span class="event-time">${timeStr}</span>
+            `;
+            
+            eventsContainer.appendChild(eventDiv);
+            eventsContainer.scrollTop = eventsContainer.scrollHeight;
+        }
+        
+        function updateAgentStats() {
+            agentStats.innerHTML = '';
+            
+            Object.entries(agentStatsData).forEach(([agentName, stats]) => {
+                const statDiv = document.createElement('div');
+                statDiv.className = 'agent-stat';
+                statDiv.innerHTML = `
+                    <h4>${agentName}</h4>
+                    <div class="stat-grid">
+                        <div>Decisions: ${stats.decisions}</div>
+                        <div>Reviews: ${stats.reviews}</div>
+                        <div>Improvements: ${stats.improvements}</div>
+                    </div>
+                `;
+                agentStats.appendChild(statDiv);
+            });
+        }
+        
+        function resetAgentStats() {
+            Object.keys(agentStatsData).forEach(agent => {
+                agentStatsData[agent] = { decisions: 0, reviews: 0, improvements: 0 };
+            });
+            updateAgentStats();
+        }
+        
+        function resetUI() {
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 Start Agentic Generation';
+        }
+        
+        // Initialize
+        updateAgentStats();
+    </script>
+</body>
+</html>
