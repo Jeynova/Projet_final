@@ -418,13 +418,17 @@ Temps AgentForge: 30 minutes + 2h validation
 ```
 Projet_final/
 ├── AgentForge/
-│   ├── core/
-│   ├── orchestrators/
-│   ├── agents/
-│   ├── webapp/ui_flask_v3/
-│   ├── scripts/
-│   ├── templates/
-│   └── ... (autres dossiers/fichiers)
+│   ├── agentic/                      # 🎯 NEW: Clean agentic system  
+│   │   ├── simple_agentic_graph.py  # Main CLI pipeline
+│   │   ├── agents/base_agent.py     # Agent classes
+│   │   ├── memory/memory_agent.py   # RAG memory system
+│   │   └── webapp/app_agentic.py    # Web interface
+│   ├── core/                        # Shared utilities
+│   ├── orchestrator/                # 🔒 OLD: Deterministic (archived)
+│   ├── local_output/                # (gitignoré)
+│   ├── TDL_V3/                      # (gitignoré) 
+│   ├── last backup/                 # (gitignoré)
+│   └── test_clean_agentic.py        # Test new system
 ├── docs_oral_backup/
 ├── Projekt_final/
 ├── ProjetForge/
@@ -508,8 +512,9 @@ docker-compose up
 
 ### Fichiers principaux à utiliser
 
-- **Interface web** : `webapp/ui_flask_v3/app_agentic.py` (lance le serveur Flask, monitoring en temps réel, téléchargement ZIP)
-- **Génération CLI/test** : `simple_agentic_graph.py` (pipeline agentique simple, utile pour debug et tests)
+- **Interface web** : `agentic/webapp/app_agentic.py` (serveur Flask, monitoring en temps réel, téléchargement ZIP)
+- **Génération CLI/test** : `agentic/simple_agentic_graph.py` (pipeline agentique propre, utile pour debug et tests)
+- **Test du système** : `test_clean_agentic.py` (valide que tout fonctionne)
 
 ### Variable d'environnement obligatoire
 
@@ -518,14 +523,14 @@ docker-compose up
 ```powershell
 # Sous PowerShell (Windows)
 $env:AGENTFORGE_LLM = "ollama"
-python webapp/ui_flask_v3/app_agentic.py
+python agentic/webapp/app_agentic.py
 ```
 
 Si la variable n'est pas positionnée, le système fonctionne en mode "mock" (aucune génération intelligente, juste des placeholders).
 
 ### Résumé du workflow réel
 
-1. **Lancement** : Démarrez `app_agentic.py` (web) ou `simple_agentic_graph.py` (CLI)
+1. **Lancement** : Démarrez `agentic/webapp/app_agentic.py` (web) ou `agentic/simple_agentic_graph.py` (CLI)
 2. **Prompt utilisateur** : Saisissez la description du projet
 3. **Pipeline agentique** :
     - 4 agents spécialisés (architecture, dev, QA, mémoire)
@@ -534,9 +539,10 @@ Si la variable n'est pas positionnée, le système fonctionne en mode "mock" (au
 4. **Génération** : Structure de projet, code Python, README, requirements.txt
 5. **Téléchargement** : ZIP du projet via l'interface web
 
-**Attention :**
-- Pas de génération Docker, tests auto, ou scripts avancés pour l'instant (voir roadmap)
-- Le README a été nettoyé pour ne plus promettre de fonctionnalités non livrées
+**Architecture propre :**
+- Le dossier `orchestrator/` contient l'ancienne approche déterministe (archivé, voir README dedans)
+- Le dossier `agentic/` contient le nouveau système agentique propre et modulaire
+- Seuls 2 fichiers comptent vraiment : `agentic/webapp/app_agentic.py` et `agentic/simple_agentic_graph.py`
 
 ---
 

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎭 AgentForge - Organic Intelligence</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            width: 95%;
+            max-width: 1400px;
+            height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            grid-template-rows: 80px 1fr;
+            overflow: hidden;
+        }
+        
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #4a5568, #2d3748);
+            color: white;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .main-area {
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .input-section {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+        }
+        
+        .input-section h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+            font-size: 18px;
+        }
+        
+        #prompt-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #cbd5e0;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        #generate-btn {
+            margin-top: 15px;
+            padding: 12px 30px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        #generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .progress-area {
+            flex: 1;
+            background: #f7fafc;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .progress-header {
+            background: #edf2f7;
+            padding: 15px 20px;
+            border-bottom: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .current-agent {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: white;
+        }
+        
+        .agent-activity {
+            background: #f0fff4;
+            border: 2px solid #68d391;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .agent-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: #22543d;
+            margin-bottom: 10px;
+        }
+        
+        .agent-operation {
+            color: #2f855a;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+        
+        .team-discussion {
+            background: #fff5f5;
+            border-left: 4px solid #fc8181;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        
+        .team-discussion h4 {
+            color: #742a2a;
+            margin-bottom: 10px;
+        }
+        
+        .perspective {
+            margin: 8px 0;
+            padding: 8px;
+            background: rgba(254, 226, 226, 0.5);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .tech-choice {
+            background: #e6fffa;
+            border: 2px solid #38b2ac;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        
+        .tech-choice h4 {
+            color: #234e52;
+            margin-bottom: 8px;
+        }
+        
+        .sidebar {
+            background: #f7fafc;
+            border-left: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .agent-log {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .agent-log h3 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+        
+        .log-entry {
+            background: white;
+            margin: 8px 0;
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #cbd5e0;
+            font-size: 14px;
+        }
+        
+        .log-entry.completed {
+            border-left-color: #48bb78;
+        }
+        
+        .log-entry.running {
+            border-left-color: #ed8936;
+            background: #fffaf0;
+            animation: pulse 1.5s ease-in-out infinite alternate;
+        }
+        
+        .log-entry.failed {
+            border-left-color: #f56565;
+            background: #fed7d7;
+        }
+        
+        .log-entry.skipped {
+            border-left-color: #a0aec0;
+            opacity: 0.7;
+        }
+        
+        @keyframes pulse {
+            from { background-color: #fffaf0; }
+            to { background-color: #feebc8; }
+        }
+        
+        .stats-area {
+            padding: 20px;
+            background: #edf2f7;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .stat-item {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .download-section {
+            margin-top: 15px;
+        }
+        
+        #download-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #48bb78, #38a169);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #download-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(72, 187, 120, 0.4);
+        }
+        
+        #download-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            🎭 AgentForge - Organic Intelligence
+            <span style="margin-left: auto; font-size: 16px; opacity: 0.8;">8 Core Agents | Pure LLM Intelligence</span>
+        </div>
+        
+        <div class="main-area">
+            <div class="input-section">
+                <h3>🚀 Project Request</h3>
+                <textarea id="prompt-input" placeholder="Describe your project... (e.g., 'Create a real-time chat application for a startup')"></textarea>
+                <button id="generate-btn" onclick="startGeneration()">
+                    🎭 Generate with Organic Intelligence
+                </button>
+            </div>
+            
+            <div class="progress-area">
+                <div class="progress-header">
+                    🔄 Live Agent Activity
+                </div>
+                <div class="current-agent" id="current-agent">
+                    <div style="text-align: center; color: #a0aec0; margin-top: 50px;">
+                        <h3>Ready to Generate</h3>
+                        <p>Enter a project description and click generate to see the organic intelligence team in action!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="agent-log">
+                <h3>📜 Agent Progress Log</h3>
+                <div id="agent-log-list">
+                    <!-- Agent progress will appear here -->
+                </div>
+            </div>
+            
+            <div class="stats-area">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="tech-choices">0</div>
+                        <div>Tech Choices</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="files-generated">0</div>
+                        <div>Files Generated</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="llm-calls">0</div>
+                        <div>LLM Calls</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="overall-score">-</div>
+                        <div>Overall Score</div>
+                    </div>
+                </div>
+                
+                <div class="download-section">
+                    <button id="download-btn" onclick="downloadProject()" disabled>
+                        📦 Download Project
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentSessionId = null;
+        
+        // UI Elements
+        const promptInput = document.getElementById('prompt-input');
+        const generateBtn = document.getElementById('generate-btn');
+        const currentAgentDiv = document.getElementById('current-agent');
+        const agentLogList = document.getElementById('agent-log-list');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Stats elements
+        const techChoicesSpan = document.getElementById('tech-choices');
+        const filesGeneratedSpan = document.getElementById('files-generated');
+        const llmCallsSpan = document.getElementById('llm-calls');
+        const overallScoreSpan = document.getElementById('overall-score');
+        
+        function startGeneration() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                alert('Please enter a project description');
+                return;
+            }
+            
+            // Reset UI
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="loading"></span> Generating...';
+            downloadBtn.disabled = true;
+            agentLogList.innerHTML = '';
+            resetStats();
+            
+            // Show waiting state
+            currentAgentDiv.innerHTML = `
+                <div class="agent-activity">
+                    <div class="agent-name">🎭 Initializing Organic Intelligence...</div>
+                    <div class="agent-operation">Starting multi-perspective team meeting</div>
+                </div>
+            `;
+            
+            // Start pipeline
+            currentSessionId = socket.id;
+            socket.emit('start_pipeline', { prompt: prompt });
+        }
+        
+        function resetStats() {
+            techChoicesSpan.textContent = '0';
+            filesGeneratedSpan.textContent = '0';
+            llmCallsSpan.textContent = '0';
+            overallScoreSpan.textContent = '-';
+        }
+        
+        function updateStats(stats) {
+            techChoicesSpan.textContent = stats.tech_choices || '0';
+            filesGeneratedSpan.textContent = stats.files_generated || '0';
+            llmCallsSpan.textContent = stats.llm_calls || '0';
+        }
+        
+        function addLogEntry(agent, status, summary = '') {
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${status}`;
+            logEntry.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 5px;">${agent}</div>
+                <div style="font-size: 12px; opacity: 0.8;">${summary}</div>
+            `;
+            agentLogList.appendChild(logEntry);
+            agentLogList.scrollTop = agentLogList.scrollHeight;
+        }
+        
+        function downloadProject() {
+            window.open('/download_project', '_blank');
+        }
+        
+        // Socket event handlers
+        socket.on('pipeline_started', (data) => {
+            console.log('Pipeline started:', data);
+        });
+        
+        socket.on('agent_started', (data) => {
+            // Update current agent display
+            currentAgentDiv.innerHTML = `
+                <div class="agent-activity">
+                    <div class="agent-name">🔄 ${data.agent}</div>
+                    <div class="agent-operation">Step ${data.step} of ${data.total} - Initializing...</div>
+                    <div style="margin-top: 10px;">
+                        <span class="loading"></span> Working...
+                    </div>
+                </div>
+            `;
+            
+            // Add to log as running
+            addLogEntry(data.agent, 'running', 'Processing...');
+        });
+        
+        socket.on('llm_call', (data) => {
+            // Update current agent with LLM activity
+            const currentActivity = currentAgentDiv.querySelector('.agent-activity');
+            if (currentActivity) {
+                const operation = currentActivity.querySelector('.agent-operation');
+                operation.textContent = `${data.operation} (LLM Call #${data.total_calls})`;
+                
+                // Add team discussion visualization for tech agent
+                if (data.agent === 'MultiPerspectiveTechAgent') {
+                    const existingDiscussion = currentActivity.querySelector('.team-discussion');
+                    if (!existingDiscussion) {
+                        const discussionDiv = document.createElement('div');
+                        discussionDiv.className = 'team-discussion';
+                        discussionDiv.innerHTML = `
+                            <h4>🎭 Multi-Perspective Team Meeting</h4>
+                            <div class="perspective">👔 PM: Analyzing timeline and budget constraints...</div>
+                            <div class="perspective">💻 Dev: Evaluating technical implementation options...</div>
+                            <div class="perspective">📋 PO: Considering user experience requirements...</div>
+                            <div class="perspective">🎯 Consultant: Reviewing industry best practices...</div>
+                            <div class="perspective">👤 User: Assessing performance expectations...</div>
+                        `;
+                        currentActivity.appendChild(discussionDiv);
+                    }
+                }
+            }
+            
+            // Update stats
+            updateStats({ llm_calls: data.total_calls });
+        });
+        
+        socket.on('agent_completed', (data) => {
+            // Update log entry
+            const logEntries = agentLogList.querySelectorAll('.log-entry');
+            const lastEntry = logEntries[logEntries.length - 1];
+            if (lastEntry) {
+                lastEntry.className = 'log-entry completed';
+                lastEntry.querySelector('div:last-child').textContent = data.result;
+            }
+            
+            // Special handling for tech selection
+            if (data.agent === 'MultiPerspectiveTechAgent') {
+                // Show tech choices in current agent area
+                const techChoices = data.result;
+                currentAgentDiv.innerHTML += `
+                    <div class="tech-choice">
+                        <h4>🎯 Team's Organic Technology Decision</h4>
+                        <div>${techChoices}</div>
+                    </div>
+                `;
+            }
+        });
+        
+        socket.on('agent_skipped', (data) => {
+            addLogEntry(data.agent, 'skipped', data.reason);
+        });
+        
+        socket.on('agent_failed', (data) => {
+            addLogEntry(data.agent, 'failed', `Error: ${data.error}`);
+        });
+        
+        socket.on('pipeline_completed', (data) => {
+            // Show final results
+            currentAgentDiv.innerHTML = `
+                <div style="text-align: center; padding: 30px;">
+                    <h2 style="color: #48bb78; margin-bottom: 20px;">🎉 Organic Intelligence Complete!</h2>
+                    
+                    <div class="tech-choice">
+                        <h4>🎭 Final Technology Stack</h4>
+                        ${data.tech_stack.map(tech => `
+                            <div style="margin: 8px 0;">
+                                <strong>${tech.role}:</strong> ${tech.name}
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background: #f0fff4; border-radius: 8px;">
+                        <h4>📊 Project Evaluation</h4>
+                        <div>Overall Score: ${data.evaluation.overall_score || 'N/A'}/10</div>
+                        <div>Technology Fit: ${data.evaluation.technology_fit || 'N/A'}/10</div>
+                        <div>Code Quality: ${data.evaluation.code_quality || 'N/A'}/10</div>
+                    </div>
+                </div>
+            `;
+            
+            // Update final stats
+            updateStats(data.stats);
+            overallScoreSpan.textContent = data.evaluation.overall_score || '-';
+            
+            // Enable download if project generated
+            if (data.download_ready) {
+                downloadBtn.disabled = false;
+            }
+            
+            // Re-enable generate button
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '🎭 Generate with Organic Intelligence';
+        });
+        
+        socket.on('error', (data) => {
+            alert(`Error: ${data.message}`);
+            generateBtn.disabled = false;
+            generateBtn.innerHTML = '🎭 Generate with Organic Intelligence';
+        });
+        
+        // Sample prompts for testing
+        const samplePrompts = [
+            "Create a simple blog platform for a small business",
+            "Build a real-time chat application with WebSocket support",
+            "Develop a high-performance API for data analytics",
+            "Create an e-commerce platform with payment integration"
+        ];
+        
+        // Add sample prompt buttons
+        window.addEventListener('load', () => {
+            const inputSection = document.querySelector('.input-section');
+            const samplesDiv = document.createElement('div');
+            samplesDiv.innerHTML = `
+                <div style="margin-top: 15px;">
+                    <small style="color: #718096;">Quick samples:</small>
+                    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${samplePrompts.map(prompt => `
+                            <button style="padding: 6px 12px; background: #e2e8f0; border: none; border-radius: 6px; font-size: 12px; cursor: pointer;" 
+                                    onclick="promptInput.value='${prompt}'">${prompt.slice(0, 25)}...</button>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+            inputSection.appendChild(samplesDiv);
+        });
+    </script>
+</body>
+</html>

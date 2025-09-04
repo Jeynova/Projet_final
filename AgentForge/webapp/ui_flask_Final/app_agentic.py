@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.append(str(ROOT))
 
 # Import our SIMPLE AGENTIC GRAPH
-from simple_agentic_graph import SimpleAgenticGraph, SimpleAgent
+from Projet_final.AgentForge.orchestrator_Final.simple_agentic_graph import SimpleAgenticGraph, SimpleAgent
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'simple-agentic-secret-key'

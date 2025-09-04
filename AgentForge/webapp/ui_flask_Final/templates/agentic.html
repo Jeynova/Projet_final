@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentForge - Simple Agentic Generation</title>
+    <script src="https://cdn.socket.io/4.0.0/socket.io.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            min-height: 100vh;
+            color: white;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4, #45b7d1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .agents-info {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .agent-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .agent-card h3 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+        
+        .input-section {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .input-group input, .input-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 16px;
+        }
+        
+        .input-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .monitoring-section {
+            display: none;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .monitoring-section.active {
+            display: block;
+        }
+        
+        .agent-stats {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .agent-stat {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        .agent-stat h4 {
+            color: #4ecdc4;
+            margin-bottom: 10px;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .events-log {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .events-log h3 {
+            margin-bottom: 15px;
+            color: #4ecdc4;
+        }
+        
+        .event {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #4ecdc4;
+        }
+        
+        .event.decision {
+            border-left-color: #ff6b6b;
+        }
+        
+        .event.review {
+            border-left-color: #45b7d1;
+        }
+        
+        .event.improvement {
+            border-left-color: #96ceb4;
+        }
+        
+        .event.error {
+            border-left-color: #ff4757;
+            background: rgba(255, 71, 87, 0.2);
+        }
+        
+        .event-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+            float: right;
+        }
+        
+        .download-section {
+            display: none;
+            background: rgba(0, 255, 0, 0.2);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .download-section.active {
+            display: block;
+        }
+        
+        .download-btn {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(45deg, #96ceb4, #4ecdc4);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            margin: 10px;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .stats-summary {
+            display: none;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+        
+        .stats-summary.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 4px solid #4ecdc4;
+        }
+        
+        .stat-card h4 {
+            color: #4ecdc4;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .agent-performance {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .agent-perf-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        
+        .key-insights {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        
+        .insight-item {
+            margin: 10px 0;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .insight-time {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-thinking { background: #ffc107; }
+        .status-deciding { background: #ff6b6b; }
+        .status-reviewing { background: #45b7d1; }
+        .status-improving { background: #96ceb4; }
+        .status-complete { background: #28a745; }
+        .status-error { background: #ff4757; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AgentForge</h1>
+            <p>Simple Agentic Generation with 4 Real AI Agents</p>
+        </div>
+        
+        <div class="agents-info">
+            <div class="agent-card">
+                <h3>👨‍💻 DevAgent</h3>
+                <p>Senior Developer<br>Model: codellama:7b</p>
+            </div>
+            <div class="agent-card">
+                <h3>🏗️ ArchAgent</h3>
+                <p>Solution Architect<br>Model: mistral:7b</p>
+            </div>
+            <div class="agent-card">
+                <h3>🔍 QAAgent</h3>
+                <p>Quality Assurance<br>Model: qwen2.5-coder:7b</p>
+            </div>
+            <div class="agent-card">
+                <h3>🧠 MemoryAgent</h3>
+                <p>Pattern Learning<br>RAG + Embeddings</p>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <label for="prompt">Project Description:</label>
+                <textarea id="prompt" placeholder="Describe your project... e.g., 'Create a task management API with user authentication and CRUD operations'"></textarea>
+            </div>
+            
+            <div class="input-group">
+                <label for="project_name">Project Name:</label>
+                <input type="text" id="project_name" placeholder="MyProject" value="AgenticProject">
+            </div>
+            
+            <button id="generate-btn" class="generate-btn">
+                🚀 Start Agentic Generation
+            </button>
+        </div>
+        
+        <div id="monitoring-section" class="monitoring-section">
+            <h2>🤖 Agent Activity Monitor</h2>
+            
+            <div class="agent-stats" id="agent-stats">
+                <!-- Agent stats will be populated dynamically -->
+            </div>
+            
+            <div class="events-log">
+                <h3>📊 Real-time Agent Events</h3>
+                <div id="events-container">
+                    <!-- Events will be populated dynamically -->
+                </div>
+            </div>
+        </div>
+        
+        <div id="download-section" class="download-section">
+            <h2>🎉 Generation Complete!</h2>
+            <p>Your project has been generated by the agent team.</p>
+            <br>
+            <a id="download-btn" class="download-btn" href="#" download>
+                📦 Download Project ZIP
+            </a>
+            <button id="view-stats-btn" class="download-btn" onclick="toggleStats()">
+                📊 View Summary Stats
+            </button>
+        </div>
+        
+        <div id="stats-summary" class="stats-summary">
+            <h2>📊 Project Generation Summary</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h4>⏱️ Generation Time</h4>
+                    <div class="stat-value" id="stat-duration">--</div>
+                    <div class="stat-label">Total Duration</div>
+                </div>
+                <div class="stat-card">
+                    <h4>📄 Files Created</h4>
+                    <div class="stat-value" id="stat-files">--</div>
+                    <div class="stat-label">Total Files</div>
+                </div>
+                <div class="stat-card">
+                    <h4>📝 Lines of Code</h4>
+                    <div class="stat-value" id="stat-lines">--</div>
+                    <div class="stat-label">Total Lines</div>
+                </div>
+                <div class="stat-card">
+                    <h4>🤖 Agent Events</h4>
+                    <div class="stat-value" id="stat-events">--</div>
+                    <div class="stat-label">Total Actions</div>
+                </div>
+            </div>
+            
+            <div class="agent-performance" id="agent-performance">
+                <!-- Agent performance cards will be populated here -->
+            </div>
+            
+            <div class="key-insights">
+                <h4>🔑 Key Decisions</h4>
+                <div id="key-decisions">
+                    <!-- Key decisions will be populated here -->
+                </div>
+                
+                <h4 style="margin-top: 20px;">⚠️ Critical Reviews</h4>
+                <div id="critical-reviews">
+                    <!-- Critical reviews will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentSessionId = null;
+        let summaryStats = null;
+        
+        // Elements
+        const generateBtn = document.getElementById('generate-btn');
+        const monitoringSection = document.getElementById('monitoring-section');
+        const downloadSection = document.getElementById('download-section');
+        const statsSection = document.getElementById('stats-summary');
+        const eventsContainer = document.getElementById('events-container');
+        const agentStats = document.getElementById('agent-stats');
+        const downloadBtn = document.getElementById('download-btn');
+        
+        // Agent statistics tracking
+        const agentStatsData = {
+            'DevAgent': { decisions: 0, reviews: 0, improvements: 0, files_created: 0, lines_written: 0 },
+            'ArchAgent': { decisions: 0, reviews: 0, improvements: 0, files_created: 0, lines_written: 0 },
+            'QAAgent': { decisions: 0, reviews: 0, improvements: 0, files_created: 0, lines_written: 0 },
+            'MemoryAgent': { patterns_learned: 0, patterns_reused: 0, similarity_matches: 0, embeddings_created: 0, cache_hits: 0 }
+        };
+        
+        // Generate button click
+        generateBtn.addEventListener('click', async () => {
+            const prompt = document.getElementById('prompt').value.trim();
+            const projectName = document.getElementById('project_name').value.trim() || 'AgenticProject';
+            
+            if (!prompt) {
+                alert('Please enter a project description');
+                return;
+            }
+            
+            // Disable button and show monitoring
+            generateBtn.disabled = true;
+            generateBtn.textContent = '🤖 Agents Working...';
+            monitoringSection.classList.add('active');
+            downloadSection.classList.remove('active');
+            statsSection.classList.remove('active');
+            
+            // Clear previous events and stats
+            eventsContainer.innerHTML = '';
+            resetAgentStats();
+            
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, project_name: projectName })
+                });
+                
+                const result = await response.json();
+                console.log('🚀 Generation started:', result);
+                currentSessionId = result.session_id;
+                
+                // Join session for real-time updates
+                socket.emit('join_session', { session_id: currentSessionId });
+                
+            } catch (error) {
+                console.error('Error starting generation:', error);
+                addEvent('error', 'Failed to start generation');
+                resetUI();
+            }
+        });
+        
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('✅ Connected to server');
+        });
+        
+        socket.on('session_joined', (data) => {
+            console.log('✅ Joined session:', data.session_id);
+        });
+        
+        socket.on('agent_event', (event) => {
+            console.log('📡 Agent event received:', event);
+            addEvent(event.type, event.message, event.agent, event.timestamp);
+            
+            // Update agent stats based on event type
+            if (event.agent) {
+                if (event.agent === 'MemoryAgent') {
+                    // Handle MemoryAgent events differently
+                    if (event.type === 'memory') {
+                        if (event.message.includes('learned new pattern')) {
+                            agentStatsData[event.agent].patterns_learned++;
+                        } else if (event.message.includes('reused pattern')) {
+                            agentStatsData[event.agent].patterns_reused++;
+                        }
+                    }
+                } else {
+                    // Handle regular agent events
+                    if (event.type === 'decision') agentStatsData[event.agent].decisions++;
+                    if (event.type === 'review') agentStatsData[event.agent].reviews++;
+                    if (event.type === 'improvement') agentStatsData[event.agent].improvements++;
+                    if (event.type === 'file_created') {
+                        agentStatsData[event.agent].files_created++;
+                        const lines = parseInt(event.message.match(/\((\d+) lines\)/)?.[1] || 0);
+                        agentStatsData[event.agent].lines_written += lines;
+                    }
+                }
+                updateAgentStats();
+            }
+        });
+        
+        socket.on('generation_complete', (result) => {
+            console.log('🎉 Generation complete:', result);
+            addEvent('complete', `🎉 Generation Complete! ${result.files_count} files generated`);
+            
+            // Show download section
+            downloadSection.classList.add('active');
+            downloadBtn.href = `/api/download/${currentSessionId}`;
+            
+            resetUI();
+        });
+        
+        socket.on('generation_summary', (stats) => {
+            console.log('📊 Summary stats received:', stats);
+            summaryStats = stats;
+            populateSummaryStats(stats);
+        });
+        
+        socket.on('agent_stats_update', (data) => {
+            console.log('📊 Agent stats update:', data);
+            // Update agent stats in real-time
+            updateAgentStatsDisplay(data.agent_name, data.stats);
+            // Update totals
+            if (data.total_files) {
+                const totalFilesSpan = document.querySelector('.total-files');
+                if (totalFilesSpan) totalFilesSpan.textContent = data.total_files;
+            }
+            if (data.total_lines) {
+                const totalLinesSpan = document.querySelector('.total-lines');
+                if (totalLinesSpan) totalLinesSpan.textContent = data.total_lines;
+            }
+        });
+        
+        socket.on('generation_error', (error) => {
+            console.error('❌ Generation error:', error);
+            addEvent('error', `❌ Generation Failed: ${error.error || 'Unknown error'}`);
+            resetUI();
+        });
+        
+        // Helper functions
+        function addEvent(type, message, agent = null, timestamp = null) {
+            const eventDiv = document.createElement('div');
+            eventDiv.className = `event ${type}`;
+            
+            const timeStr = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+            const agentStr = agent ? `[${agent}] ` : '';
+            
+            eventDiv.innerHTML = `
+                <span class="status-indicator status-${type}"></span>
+                ${agentStr}${message}
+                <span class="event-time">${timeStr}</span>
+            `;
+            
+            eventsContainer.appendChild(eventDiv);
+            eventsContainer.scrollTop = eventsContainer.scrollHeight;
+        }
+        
+        function updateAgentStats() {
+            agentStats.innerHTML = '';
+            
+            Object.entries(agentStatsData).forEach(([agentName, stats]) => {
+                const statDiv = document.createElement('div');
+                statDiv.className = 'agent-stat';
+                
+                if (agentName === 'MemoryAgent') {
+                    // Special display for MemoryAgent
+                    statDiv.innerHTML = `
+                        <h4>${agentName} 🧠</h4>
+                        <div class="stat-grid">
+                            <div>Patterns Learned: ${stats.patterns_learned || 0}</div>
+                            <div>Patterns Reused: ${stats.patterns_reused || 0}</div>
+                            <div>Embeddings: ${stats.embeddings_created || 0}</div>
+                            <div>Similarity Matches: ${stats.similarity_matches || 0}</div>
+                            <div>Cache Hits: ${stats.cache_hits || 0}</div>
+                        </div>
+                    `;
+                } else {
+                    // Regular agent stats
+                    statDiv.innerHTML = `
+                        <h4>${agentName}</h4>
+                        <div class="stat-grid">
+                            <div>Decisions: ${stats.decisions}</div>
+                            <div>Reviews: ${stats.reviews}</div>
+                            <div>Improvements: ${stats.improvements}</div>
+                            <div>Files: ${stats.files_created}</div>
+                            <div>Lines: ${stats.lines_written}</div>
+                        </div>
+                    `;
+                }
+                agentStats.appendChild(statDiv);
+            });
+        }
+        
+        function updateAgentStatsDisplay(agentName, agentStats) {
+            // Find existing agent stat div or create new one
+            const agentStatsContainer = document.getElementById('agent-stats');
+            if (!agentStatsContainer) return;
+            
+            let agentDiv = document.querySelector(`[data-agent="${agentName}"]`);
+            if (!agentDiv) {
+                agentDiv = document.createElement('div');
+                agentDiv.className = 'agent-stat';
+                agentDiv.setAttribute('data-agent', agentName);
+                agentStatsContainer.appendChild(agentDiv);
+            }
+            
+            // Update content with real-time stats
+            agentDiv.innerHTML = `
+                <h3>${agentName}</h3>
+                <div class="agent-metrics">
+                    <div>Files: ${agentStats.files_created || 0}</div>
+                    <div>Lines: ${agentStats.lines_written || 0}</div>
+                    <div>Reviews: ${agentStats.reviews || 0}</div>
+                    <div>Decisions: ${agentStats.decisions || 0}</div>
+                </div>
+            `;
+        }
+        
+        function populateSummaryStats(stats) {
+            // Main stats
+            document.getElementById('stat-duration').textContent = stats.duration_formatted;
+            document.getElementById('stat-files').textContent = stats.files_created;
+            document.getElementById('stat-lines').textContent = stats.total_lines;
+            document.getElementById('stat-events').textContent = stats.total_events;
+            
+            // Agent performance
+            const agentPerformance = document.getElementById('agent-performance');
+            agentPerformance.innerHTML = '';
+            
+            Object.entries(stats.agents_stats).forEach(([agentName, agentStats]) => {
+                const perfCard = document.createElement('div');
+                perfCard.className = 'agent-perf-card';
+                perfCard.innerHTML = `
+                    <h4>${agentName}</h4>
+                    <div>📄 ${agentStats.files_created} files</div>
+                    <div>📝 ${agentStats.lines_written} lines</div>
+                    <div>🤔 ${agentStats.decisions} decisions</div>
+                    <div>🔍 ${agentStats.reviews} reviews</div>
+                    <div>⚡ ${agentStats.improvements} improvements</div>
+                `;
+                agentPerformance.appendChild(perfCard);
+            });
+            
+            // Key decisions
+            const keyDecisions = document.getElementById('key-decisions');
+            keyDecisions.innerHTML = '';
+            stats.key_decisions.forEach(decision => {
+                const item = document.createElement('div');
+                item.className = 'insight-item';
+                item.innerHTML = `
+                    <span class="insight-time">[${decision.time}]</span>
+                    ${decision.agent}: ${decision.decision}
+                `;
+                keyDecisions.appendChild(item);
+            });
+            
+            // Critical reviews
+            const criticalReviews = document.getElementById('critical-reviews');
+            criticalReviews.innerHTML = '';
+            if (stats.critical_reviews.length > 0) {
+                stats.critical_reviews.forEach(review => {
+                    const item = document.createElement('div');
+                    item.className = 'insight-item';
+                    item.innerHTML = `
+                        <span class="insight-time">[${review.time}]</span>
+                        ${review.agent}: ${review.file} scored ${review.score}/5
+                    `;
+                    criticalReviews.appendChild(item);
+                });
+            } else {
+                criticalReviews.innerHTML = '<div class="insight-item">✅ No critical issues found</div>';
+            }
+        }
+        
+        function toggleStats() {
+            statsSection.classList.toggle('active');
+        }
+        
+        function resetAgentStats() {
+            Object.keys(agentStatsData).forEach(agent => {
+                agentStatsData[agent] = { decisions: 0, reviews: 0, improvements: 0, files_created: 0, lines_written: 0 };
+            });
+            updateAgentStats();
+        }
+        
+        function resetUI() {
+            generateBtn.disabled = false;
+            generateBtn.textContent = '🚀 Start Agentic Generation';
+        }
+        
+        // Initialize
+        updateAgentStats();
+    </script>
+</body>
+</html>

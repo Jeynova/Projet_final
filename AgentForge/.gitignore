@@ -4,6 +4,15 @@ TDL_V3/
 # last backup - local backup folder
 last backup/
 
+# Old deterministic orchestrator (archived)
+orchestrator/
+
+# Old webapp versions (use agentic/webapp/ instead)  
+webapp/ui_flask/
+webapp/ui_flask_v3/
+
+# Keep only: agentic/ (new clean system)
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
