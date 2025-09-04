@@ -624,7 +624,7 @@ class SimpleAgenticGraph:
         return selected_files
     
     def _agent_code_generation(self, context: Dict[str, Any]) -> Dict[str, str]:
-        """Agents generate code independently"""
+        """Agents generate code independently (with real-time monitoring)"""
         
         files = context.get('files', [])
         generated = {}
@@ -635,6 +635,10 @@ class SimpleAgenticGraph:
             
             print(f"🔄 {agent.name}: generating {filename}...")
             
+            # Notify monitor if available (for Flask real-time updates)
+            if hasattr(self, 'monitor') and self.monitor:
+                self.monitor.log_event('generating', f"{agent.name} is generating {filename}...", agent.name)
+            
             # Agent generates code
             content = self._agent_generate_file(agent, filename, context)
             
@@ -642,6 +646,10 @@ class SimpleAgenticGraph:
                 generated[filename] = content
                 lines = len(content.split('\n'))
                 print(f"✅ {agent.name}: generated {filename} ({lines} lines)")
+                
+                # Real-time file creation notification
+                if hasattr(self, 'monitor') and self.monitor:
+                    self.monitor.log_file_creation(agent.name, filename, lines)
             else:
                 print(f"⚠️ {agent.name}: skipped {filename}")
         

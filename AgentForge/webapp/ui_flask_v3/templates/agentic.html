@@ -560,6 +560,21 @@
             populateSummaryStats(stats);
         });
         
+        socket.on('agent_stats_update', (data) => {
+            console.log('📊 Agent stats update:', data);
+            // Update agent stats in real-time
+            updateAgentStatsDisplay(data.agent_name, data.stats);
+            // Update totals
+            if (data.total_files) {
+                const totalFilesSpan = document.querySelector('.total-files');
+                if (totalFilesSpan) totalFilesSpan.textContent = data.total_files;
+            }
+            if (data.total_lines) {
+                const totalLinesSpan = document.querySelector('.total-lines');
+                if (totalLinesSpan) totalLinesSpan.textContent = data.total_lines;
+            }
+        });
+        
         socket.on('generation_error', (error) => {
             console.error('❌ Generation error:', error);
             addEvent('error', `❌ Generation Failed: ${error.error || 'Unknown error'}`);
@@ -618,6 +633,31 @@
                 }
                 agentStats.appendChild(statDiv);
             });
+        }
+        
+        function updateAgentStatsDisplay(agentName, agentStats) {
+            // Find existing agent stat div or create new one
+            const agentStatsContainer = document.getElementById('agent-stats');
+            if (!agentStatsContainer) return;
+            
+            let agentDiv = document.querySelector(`[data-agent="${agentName}"]`);
+            if (!agentDiv) {
+                agentDiv = document.createElement('div');
+                agentDiv.className = 'agent-stat';
+                agentDiv.setAttribute('data-agent', agentName);
+                agentStatsContainer.appendChild(agentDiv);
+            }
+            
+            // Update content with real-time stats
+            agentDiv.innerHTML = `
+                <h3>${agentName}</h3>
+                <div class="agent-metrics">
+                    <div>Files: ${agentStats.files_created || 0}</div>
+                    <div>Lines: ${agentStats.lines_written || 0}</div>
+                    <div>Reviews: ${agentStats.reviews || 0}</div>
+                    <div>Decisions: ${agentStats.decisions || 0}</div>
+                </div>
+            `;
         }
         
         function populateSummaryStats(stats) {

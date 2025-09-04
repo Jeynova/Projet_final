@@ -107,6 +107,14 @@ class AgentMonitor:
         self.files_created += 1
         self.total_lines += lines_count
         self.log_event('file_created', f"📄 {agent_name} created {filename} ({lines_count} lines)", agent_name)
+        
+        # Emit real-time stats update
+        socketio.emit('agent_stats_update', {
+            'agent_name': agent_name,
+            'stats': self.agents_stats[agent_name],
+            'total_files': self.files_created,
+            'total_lines': self.total_lines
+        }, room=self.session_id)
     
     def log_memory_activity(self, activity_type, details):
         """Log MemoryAgent specific activities"""
@@ -175,6 +183,9 @@ class MonitoredAgenticGraph(SimpleAgenticGraph):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         full_save_path = f"{save_folder}/webapp_{timestamp}_{session_id[:8]}"
         super().__init__(full_save_path)
+        
+        # Inject monitor into parent for real-time updates
+        self.monitor = self.monitor  # Make sure it's accessible
         
         # Replace agent methods with monitored versions
         for agent in self.agents:
@@ -317,24 +328,61 @@ def download_project(session_id):
     output_info = session_outputs[session_id]
     project_name = output_info['project_name']
     
-    # Use the exact path stored during generation
+    # Build absolute path to project files
+    # The path is: ROOT/local_output/webapp_TIMESTAMP_SESSIONID/PROJECT_NAME/
     project_path = Path(ROOT) / output_info['path'] / project_name
     
     print(f"🔍 Looking for project at: {project_path}")
+    print(f"📂 Directory exists: {project_path.exists()}")
+    if project_path.exists():
+        files = list(project_path.rglob('*'))
+        print(f"📁 Found {len(files)} files/directories")
     
     if not project_path.exists():
-        # Try the path without project name subfolder
-        project_path = Path(ROOT) / output_info['path']
-        print(f"🔍 Trying alternative path: {project_path}")
+        # Try alternative paths
+        alt_paths = [
+            Path(ROOT) / output_info['path'],  # Without project name
+            Path(ROOT) / "local_output" / project_name,  # Direct in local_output
+            Path("local_output") / project_name  # Relative path
+        ]
         
-        if not project_path.exists():
-            print(f"❌ Project not found at: {project_path}")
-            return jsonify({'error': f'Project files not found at {project_path}'}), 404
+        for alt_path in alt_paths:
+            print(f"🔍 Trying alternative: {alt_path}")
+            if alt_path.exists():
+                project_path = alt_path
+                break
+        else:
+            print(f"❌ Project files not found on disk")
+            print(f"   Expected: {Path(ROOT) / output_info['path'] / project_name}")
+            print(f"   Output info: {output_info}")
+            
+            # Fallback: create ZIP from files in memory
+            if 'files' in output_info and output_info['files']:
+                print(f"💾 Creating ZIP from in-memory files ({len(output_info['files'])} files)")
+                
+                zip_folder = Path(ROOT) / "local_output" / "downloads"
+                zip_folder.mkdir(parents=True, exist_ok=True)
+                zip_path = zip_folder / f"{session_id[:8]}_{project_name}.zip"
+                
+                try:
+                    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                        for filename, content in output_info['files'].items():
+                            zipf.writestr(filename, content)
+                            print(f"   📄 Added from memory: {filename}")
+                    
+                    print(f"✅ ZIP created from memory: {zip_path}")
+                    return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
+                    
+                except Exception as e:
+                    print(f"❌ Memory ZIP creation failed: {e}")
+                    return jsonify({'error': f'ZIP creation failed: {str(e)}'}), 500
+            else:
+                return jsonify({'error': f'No files found in memory either'}), 404
     
-    # Create ZIP file in local downloads
+    # Create ZIP file
     zip_folder = Path(ROOT) / "local_output" / "downloads"
     zip_folder.mkdir(parents=True, exist_ok=True)
-    zip_path = zip_folder / f"{session_id}_{project_name}.zip"
+    zip_path = zip_folder / f"{session_id[:8]}_{project_name}.zip"
     
     print(f"📦 Creating ZIP: {zip_path}")
     
@@ -342,17 +390,21 @@ def download_project(session_id):
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             file_count = 0
             for file_path in project_path.rglob('*'):
-                if file_path.is_file():
+                if file_path.is_file() and not file_path.name.startswith('.'):
                     arcname = file_path.relative_to(project_path)
                     zipf.write(file_path, arcname)
                     print(f"   📄 Added: {arcname}")
                     file_count += 1
         
         print(f"✅ ZIP created successfully: {zip_path} ({file_count} files)")
+        print(f"📥 ZIP size: {zip_path.stat().st_size / 1024:.1f} KB")
+        
         return send_file(zip_path, as_attachment=True, download_name=f"{project_name}.zip")
         
     except Exception as e:
         print(f"❌ ZIP creation failed: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'ZIP creation failed: {str(e)}'}), 500
 
 
